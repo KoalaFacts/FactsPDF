@@ -3,7 +3,8 @@
 `PdfImage.FromFile`, `FromBytes` and `FromStream` recognize the supplied bytes. It supports bounded baseline
 JPEG and static non-interlaced PNG, including PNG transparency. The same API,
 CLI resource binding and shared layout apply to both formats. The engine never
-interprets `src` as a file path, URL or data URI.
+interprets `src` as a file path or URL; a `data:image/png` or `data:image/jpeg`
+base64 URL is decoded inline ([data URLs](#data-urls)).
 
 ```csharp
 using FactsPDF;
@@ -20,6 +21,21 @@ dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --imag
 ```
 
 Repeat `--image name=path` for up to 16 resources. The first `=` separates the name; quote arguments with spaces. Relative paths use the process working directory. Extensions are not format evidence. Each file is read through the bounded loader; no network download is provided. Output paths cannot equal the supplied HTML, font or image path. Existing CLI temporary-file, stdout and exit-code rules still apply, including the documented trusted-directory limitation for filesystem aliases.
+
+## Data URLs
+
+`<img src="data:image/png;base64,...">` and `<img src="data:image/jpeg;base64,...">`
+render exactly like the same bytes bound with `WithImage`. The media type is
+matched case-insensitively and must be `image/png` or `image/jpeg` with the
+`;base64` marker and no other parameter; ASCII white space inside the base64 is
+skipped. Each distinct URL is decoded once per conversion through the same
+bounded loader (format detected from the bytes, as for bound images) and
+embedded once however often it is used; it counts against `MaxImageResources`
+and `MaxTotalImageBytes` together with the bound images (`FPDF1603`). Other
+media types, parameters, percent-encoded bodies (including percent escapes in
+base64), unpadded or invalid base64 fail `FPDF1103`; bytes the loader does not
+support fail with the loader's code. `srcset`, `sizes` and URL sources are not
+supported. NUnit: `LinkTargetAndDataImageTests.cs`.
 
 ## Inline SVG
 

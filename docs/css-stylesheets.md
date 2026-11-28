@@ -198,9 +198,11 @@ none changes its validated destination. It creates actual per-page PDF URI
 annotation rectangles after glyph measurement, including across line/page
 breaks and in permitted flat table-cell text. This does not add CSS properties
 or element applicability. `text-align:justify/start/end` on an inline anchor
-is rejected rather than silently applied. The single supported destination
-contract is HTTPS (ASCII, no credentials) or plain single mailto, max 2048
-characters; unsupported URLs and extra anchor attributes fail explicitly (an unsupported
+is rejected rather than silently applied. The supported destinations are HTTPS
+(ASCII, no credentials) or plain single mailto as written, absolute `http`/`https`
+URLs (fragments included) written exactly as Chrome serializes them, and relative
+references resolved against an absolute `http(s)` `<base href>`, max 2048
+characters; in-document `#fragment` links without a base are not supported; unsupported URLs and extra anchor attributes fail explicitly (an unsupported
 `href` only warns in non-strict mode: the text is drawn as a link with no annotation, see
 [feature notes](feature-notes.md#clickable-https-and-mailto-report-references-source-only)), except
 `target` and hyperlink `rel` types, which are validated and ignored
@@ -316,30 +318,94 @@ Engine source [a1300f39](https://github.com/KoalaFacts/FactsPDF/commit/a1300f394
 No binary release, manual page signoff or
 independent review is inferred from the implementation source.
 
-## Bounded `@media print` / `@media all` for PDF report stylesheets (source-only)
+## Media queries, `@supports` and `@container`
 
-An embedded `<style>` may contain top-level `@media print { ... }` or
-`@media all { ... }`. The single case-insensitive media type has no
-conditions; rules inside the block must be ordinary supported selector
-rules. Their declarations use exactly the existing supported properties,
-element applicability, values, source order, specificity, `!important`,
-inheritance, PDF paint, font metrics, page breaks and budgets. Relative
-to surrounding ordinary rules they take their actual **document order**,
-not a separate CSS origin or special print priority. Later `<style>`
-blocks still affect earlier document content.
+`@media` rules, and the `media` attribute of a `style` element or a stylesheet
+`link`, are evaluated as Chrome evaluates them when it prints (Media Queries 4):
+the medium is `print` and the viewport is the page area, the page size less the
+margins (the same area `vw` and `vh` resolve against). A block whose query list
+does not match is ignored whole, as Chrome ignores it, so its declarations are
+never checked; a matching block applies its rules at their actual **document
+order** with exactly the existing selectors, properties, values, cascade, paint,
+page breaks and budgets.
 
-Both media types are active in this PDF-only renderer. All unsupported
-at-rules, `screen`, comma lists, expressions such as `(min-width:600px)`,
-other at-rule blocks and loose declarations inside a media block fail
-`FPDF1204`, rather than silently being skipped; `@keyframes` (see
-[Animations at print time](#animations-at-print-time)), `@page` (see
-[CSS `@page`](#css-page-paper-margins-and-margin-boxes)), `@layer` (see
-[Cascade layers](#cascade-layers)) and a nested `@media print`/`all` are the
-only at-rules allowed inside. Invalid or
-unsupported declarations in an unmatched nested selector still fail
-`FPDF1202`. No media feature evaluation, browser screen rendering,
-user-origin cascade, automatic fetching or full CSS Media
-Queries is implied.
+| Part | Behaviour |
+| --- | --- |
+| Media types | `print` and `all` match; `screen`, `speech`, `tv` and every other type do not. `not` and `only` modifiers; comma lists match when any query does; an empty list matches |
+| Conditions | `and`, `or`, `not` and nested parentheses, with the Media Queries 4 grammar (no mixing of `and` and `or` without parentheses, no `or` after a media type) |
+| `width`, `height` | The page area in CSS pixels (1px = 0.75pt): plain, `min-`/`max-` and range syntax (`(400px <= width < 700px)`); lengths in `px pt pc in cm mm q em rem` (`em` and `rem` are the initial 16px) and unitless `0` |
+| `aspect-ratio`, `orientation` | Page-area width over height (`16/9`, `1.5`), with `min-`/`max-` and range syntax; `portrait` when the height is at least the width |
+| `color`, `monochrome`, `color-index`, `grid` | The fixed print values of a colour page: `(color)` matches; `monochrome`, `color-index` and `grid` are 0 (all forms; `grid` takes 0 or 1) |
+
+A malformed query (`screen or print`, `only (color)`, `print and`) is `not all`, as
+in Chrome: strict mode fails `FPDF1204`, non-strict mode reports it as a warning
+and lets the other queries of the list decide. These fail `FPDF1204` in both
+modes, because guessing their value could apply a stylesheet Chrome does not:
+media features whose print value FactsPDF does not model (`hover`, `pointer`,
+`any-hover`, `any-pointer`, `resolution`, `color-gamut`, `prefers-*`,
+`scripting`, `update`, `overflow-block`, `overflow-inline`, `display-mode`,
+`device-*`, `-webkit-device-pixel-ratio`, a value form of `color`), unknown feature
+names, general-enclosed conditions (`foo(bar)`, `(foo bar)`), negative or
+non-finite lengths, viewport units and `calc()` in a query, and degenerate ratios.
+Features that read the page area (`width`, `height`, `aspect-ratio`,
+`orientation`) also fail `FPDF1204` together with an `@page` `size` or margin
+(set the page with the writer options instead) and when content wider than the
+page prints scaled down.
+
+`@supports` answers as Chrome's grammar answers: a declaration test the CSS
+specifications prove invalid (an unknown property, a value its grammar cannot
+match) is false; a declaration FactsPDF compiles is valid CSS and is true; a
+custom property and a value holding `var()` are true; `not`, `and`, `or`,
+nested parentheses and `selector()` (one complex selector; a selector list is
+false) combine them. A declaration or selector FactsPDF can neither prove
+invalid nor compile (`(display:ruby)`, `selector(p:hover)`) may be valid in
+Chrome, so the rule fails `FPDF1204` in both modes, as do general-enclosed
+conditions, `font-tech()` and `font-format()`. A malformed condition
+(`@supports display:grid`, mixed `and` and `or`) fails `FPDF1204`, or is dropped
+with a warning when non-strict. Each declaration test counts against the
+declaration budget.
+
+`@media` and `@supports` nest in one another, in style rules and in `@layer`;
+inside a matching block `@keyframes`, `@page`, `@media`, `@supports` and `@layer`
+are allowed, other at-rules and loose declarations fail `FPDF1204`. `@container`
+needs size containment, which is not implemented: it fails `FPDF1204` (`FPDF1203`
+nested in a style rule). NUnit: `MediaQueryTests.cs`, `SupportsRuleTests.cs`,
+`PrintMediaReportTests.cs`.
+
+## External stylesheets and `@import`
+
+FactsPDF never downloads anything. A `<link rel="stylesheet" href="...">` and an
+`@import` render when the caller supplies the stylesheet's text under the exact
+href the page writes: `Pdf.Write().WithStylesheet("css/site.css", css)` in C#,
+`--stylesheet css/site.css=path/to/site.css` on the CLI. The href is matched
+case-sensitively as written; it is not resolved against `<base>` or the
+document. A supplied stylesheet goes through the same parser, cascade and
+budgets as an embedded `style` element and applies at its position in document
+order (a link between two `style` elements cascades between them).
+
+- `link`: `rel="stylesheet"` alone, a non-empty `href`, optional `media`
+  (evaluated as above; a link whose media does not match is not applied and its
+  stylesheet need not be supplied), `type` absent, empty or `text/css`, and the
+  no-op attributes `crossorigin`, `referrerpolicy`, `hreflang`, `id`, `class`,
+  `lang`, `dir="ltr"`, `data-*` and `on*`. `title` (preferred and alternate
+  stylesheet sets), `integrity`, `disabled` and other attributes fail `FPDF1103`;
+  `alternate stylesheet` and other link types combined with `stylesheet` fail
+  `FPDF1204`, as does another `type`.
+- `@import url(x)`, `@import url("x")` or `@import "x"`, then optionally `layer`
+  or `layer(name)`, `supports(condition)` or `supports(declaration)`, and a
+  media query list, before every rule other than `@charset` and `@layer`
+  statements. A condition that does not hold skips the sheet (it need not be
+  supplied); an `@import` into a layer whose condition does not hold fails
+  `FPDF1204`. A misplaced or malformed `@import` fails `FPDF1204` (non-strict:
+  warned and ignored, as Chrome ignores it). Imports nest inside supplied sheets.
+
+A stylesheet that is not supplied fails `FPDF1204` in both modes (Chrome would
+apply whatever the URL serves). A sheet that imports itself fails `FPDF1204`;
+imports nested deeper than 16 fail `FPDF1205`. Every time a sheet is linked or
+imported its characters count against `MaxCssCharacters`; at most
+`MaxStylesheetResources` (default 16) sheets may be supplied. An error inside a
+supplied sheet is reported at the `link` or `@import` that applied it, with the
+sheet's href in the message. NUnit: `ExternalStylesheetTests.cs`.
 
 The [44-entry printable register](../examples/report-print-media.html) and
 [independently authored inline control](../examples/report-print-media-oracle.html)
@@ -414,7 +480,7 @@ them silently:
 Page selectors (`:first`, `:left`, `:right`, `:blank`) and named pages fail
 `FPDF1204`, as do the corner and side margin boxes (`@top-left-corner`,
 `@left-middle` and the others), other at-rules or nested rules inside `@page`,
-and `@page` inside `@media screen`. Other properties in `@page` (`padding`,
+and an `@page` size or margin together with media features that read the page area. An `@page` inside a non-matching `@media` (`@media screen`) is ignored with its block. Other properties in `@page` (`padding`,
 `bleed`, `marks`, logical margins) or in a margin box (`text-align`,
 `vertical-align`, `width`, borders) fail `FPDF1201`. Other `size` forms,
 percentage or `auto` margins, margins that leave no page area, `counter()` of
@@ -1594,7 +1660,8 @@ Font paths are examples, not shipped files. The fontless ASCII mode still works.
 | Area | Supported |
 | --- | --- |
 | Stylesheet source | Embedded `style` at head, document or supported container level |
-| Type and media | type absent/empty/text/css; media absent/empty/all/print |
+| Type and media | type absent/empty/text/css; media evaluated as a [print media query list](#media-queries-supports-and-container) |
+| External stylesheets | `link rel=stylesheet` and `@import` with caller-supplied text ([contract](#external-stylesheets-and-import)) |
 | Simple selectors | `p`, `*`, `.note`, `#summary` |
 | Compound selectors | `p.note.active#summary`, `*.note` |
 | Selector lists | `h1, h2, p.note` |
@@ -1610,7 +1677,7 @@ HTML tag selectors are ASCII case-insensitive; class/ID values are case-sensitiv
 
 Style elements and style attributes inside a `<template>` are inert and never compiled, because the template and its contents are dropped (`TemplateElementTests.cs`); so are style markup and CSS text inside `<script>` data, which is skipped (`ScriptElementTests.cs`). All other style elements are compiled before content styling, so later styles can affect earlier content. Style contents use HTML RAWTEXT: entities are not decoded and fake markup inside CSS comments is not parsed as elements. The actual HTML `</style>` delimiter still ends the element even inside a CSS quote/comment. CSS comments separate lexical tokens without becoming descendant-combinator whitespace or concatenating identifiers.
 
-No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. `@layer` is supported ([cascade layers](#cascade-layers)), as are the sibling combinators ([below](#sibling-combinators)) and [nesting](#css-nesting). Pseudo-classes other than `:root`, the structural ones and `:not()`, pseudo-elements other than `::before`/`::after` ([generated content](#current-source-before-and-after-generated-content)), escapes and other selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
+Nothing is fetched: `link` stylesheets and `@import` apply only caller-supplied text ([external stylesheets](#external-stylesheets-and-import)). The at-rules implemented are `@media` and `@supports` ([media queries](#media-queries-supports-and-container)), `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)), `@layer`, `@import` and `@keyframes` (validated and dropped). `@layer` is supported ([cascade layers](#cascade-layers)), as are the sibling combinators ([below](#sibling-combinators)) and [nesting](#css-nesting). Pseudo-classes other than `:root`, the structural ones and `:not()`, pseudo-elements other than `::before`/`::after` ([generated content](#current-source-before-and-after-generated-content)), escapes and other selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
 
 `:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` tag has the implied `html` element as its root, so `:root` matches it there too, exactly like `html{}` (see [implied html, head and body](#implied-html-head-and-body)). `:root` composes with the structural pseudo-classes and `:not()` (`:root:first-child`, `:not(:root)`); other pseudo-classes and pseudo-elements (`:hover`, `::before`) still fail with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
 
@@ -1659,11 +1726,11 @@ the pseudo-class.
 
 ### CSS nesting
 
-A style rule may hold declarations and rules: `.card{color:navy; .title{font-weight:bold} &.wide{width:200pt} > p{margin:0} + .note{color:gray} .dark &{color:white}}`. The nesting selector `&` (written, or implied before a selector without one, as a descendant) stands for the parent's selector list as `:is()` does: each resolved selector replaces it with one parent selector, merged into the compound it is written in, and carries the specificity of the most specific parent selector. Declarations after a nested rule apply at their own position in the cascade order. `@media print`, `@media all` and `@layer` nest inside style rules (their declarations apply to the parent selector) and in one another; at the top level `&` is the root element. A parent selector with combinators (`div > p{& span{...}}`) can be replaced only by a leading `&` (it resolves to `div > p span`); `.x &`, `& + &` and other uses would need `:is()` to match a complex selector and fail `FPDF1203`, as do a type selector merged with `&` (`span&`), `&` inside `:not()` and a rule nested under a pseudo-element. Several `&` expand to at most 64 selectors and each resolved selector counts against the selector budget. Other nested at-rules (`@supports`, `@container`, `@scope`) fail `FPDF1203`. NUnit: `CssNestingTests.cs`.
+A style rule may hold declarations and rules: `.card{color:navy; .title{font-weight:bold} &.wide{width:200pt} > p{margin:0} + .note{color:gray} .dark &{color:white}}`. The nesting selector `&` (written, or implied before a selector without one, as a descendant) stands for the parent's selector list as `:is()` does: each resolved selector replaces it with one parent selector, merged into the compound it is written in, and carries the specificity of the most specific parent selector. Declarations after a nested rule apply at their own position in the cascade order. `@media`, `@supports` and `@layer` nest inside style rules (their declarations apply to the parent selector) and in one another; at the top level `&` is the root element. A parent selector with combinators (`div > p{& span{...}}`) can be replaced only by a leading `&` (it resolves to `div > p span`); `.x &`, `& + &` and other uses would need `:is()` to match a complex selector and fail `FPDF1203`, as do a type selector merged with `&` (`span&`), `&` inside `:not()` and a rule nested under a pseudo-element. Several `&` expand to at most 64 selectors and each resolved selector counts against the selector budget. Other nested at-rules (`@container`, `@scope`) fail `FPDF1203`. NUnit: `CssNestingTests.cs`.
 
 ### Cascade layers
 
-`@layer a, b;` (statement), `@layer a { ... }` (block), `@layer { ... }` (anonymous, each one distinct) and dotted sublayers (`a.b`) order the cascade as Chrome does. A layer's position is fixed where its name first appears in document order (across `<style>` elements, and inside `@media print`); a layer's own declarations rank above its sublayers; every layer ranks below the unlayered declarations, whatever their specificity. `!important` reverses the order (the earliest layer wins, a layered important declaration beats an unlayered one); the style attribute beats layers for normal declarations and loses to important ones. `revert-layer` rolls a property back to the best declaration in the layers below the declaration's own (the unlayered ones and the style attribute roll back to the last layer; with nothing below, to the user-agent style, keeping presentational hints as Chrome does). `@layer a, b {}`, a bare `@layer;` and a malformed name are invalid: `FPDF1204`, dropped when non-strict. `@import ... layer()` stays unsupported with `@import`. NUnit: `CascadeLayerTests.cs`.
+`@layer a, b;` (statement), `@layer a { ... }` (block), `@layer { ... }` (anonymous, each one distinct) and dotted sublayers (`a.b`) order the cascade as Chrome does. A layer's position is fixed where its name first appears in document order (across `<style>` elements, and inside `@media print`); a layer's own declarations rank above its sublayers; every layer ranks below the unlayered declarations, whatever their specificity. `!important` reverses the order (the earliest layer wins, a layered important declaration beats an unlayered one); the style attribute beats layers for normal declarations and loses to important ones. `revert-layer` rolls a property back to the best declaration in the layers below the declaration's own (the unlayered ones and the style attribute roll back to the last layer; with nothing below, to the user-agent style, keeping presentational hints as Chrome does). `@layer a, b {}`, a bare `@layer;` and a malformed name are invalid: `FPDF1204`, dropped when non-strict. `@import ... layer()` puts a supplied stylesheet in a layer ([external stylesheets](#external-stylesheets-and-import)). NUnit: `CascadeLayerTests.cs`.
 
 ### Math functions and viewport units
 
@@ -1725,7 +1792,8 @@ The table below is the contract (class A: invalid, dropped as a browser drops it
 | A | `FPDF1203` | CSS Syntax errors: a bad string or URL, an unmatched `)`, `]` or `}`, a stray `}` at the top level, a name without a colon, a `{}` block mixed into a value; and a string, URL, block or comment still open at the end of the style | CSS Syntax error recovery: the declaration or rule the parser drops (a bad string drops its declaration up to `;`; a stray `}` starts a rule that never gets a block); constructs open at the end are closed and kept |
 | A | `FPDF1203` | An invalid selector list: an empty selector (`h1,,p`, a trailing comma), a leading, trailing or doubled combinator, `.` without a class name, an ID that is not an identifier (`#1a`), a malformed attribute selector (`[a b]`, `[a=b x]`), an unknown pseudo-class or pseudo-element (`:frobnicate`, `::frobnicate`), a page pseudo-class outside `@page` (`:first`, `:left`, `:right`), a compound selector after a pseudo-element | The whole style rule is dropped, declarations included |
 | A | `FPDF1203` | An unknown at-rule inside a style rule (`p{color:navy;@frobnicate;font-size:9pt}`) | The at-rule is dropped; the rule's declarations stay |
-| A | `FPDF1204` | An unknown at-rule at the top level or inside `@media` (`@frobnicate{…}`, `@frobnicate;`), and `@media` without a block (`@media print;`) | The at-rule is dropped with its block, or up to its `;` |
+| A | `FPDF1204` | An unknown at-rule at the top level or inside `@media` (`@frobnicate{…}`, `@frobnicate;`), and `@media` or `@supports` without a block (`@media print;`) | The at-rule is dropped with its block, or up to its `;` |
+| A | `FPDF1204` | A malformed media query (`@media screen or print`, also in a `media` attribute), a malformed `@supports` condition, and a misplaced or malformed `@import` | The query is `not all`; the `@supports` rule or `@import` is dropped |
 | A | `FPDF1204` | A `style` element whose `type` is neither empty nor an ASCII case-insensitive match for `text/css`: HTML does not process it as a stylesheet (Chrome 158 ignores `text/less`, and also `text/css; charset=utf-8` and ` text/css`: parameters and white space are not stripped) | The whole element is ignored, with its other attributes |
 | A | `FPDF1204` | A malformed `@keyframes` rule (no name, `none` or a CSS-wide keyword as the name, a keyframe selector other than `from`, `to` or a percentage) | Dropped; no animation can use it |
 | A | `FPDF1204` | A malformed `@layer` rule (`@layer a, b {}`, `@layer;`, a name that is not identifiers joined by dots) | Dropped whole |
@@ -1735,7 +1803,7 @@ The table below is the contract (class A: invalid, dropped as a browser drops it
 | B | `FPDF1201` | A property the specifications or Chrome know but FactsPDF does not render (`grid-template-columns`, `table-layout`), and every applicability rule (box properties on inline text, list properties outside lists, margins in table cells, …) | Fails |
 | B | `FPDF1202` | A valid value FactsPDF does not render: `position:absolute`, `display:flex`, `font-style:oblique`, `transform:rotate(5deg)`, `background:url(…)`, a computed size outside the renderer's range, a CSS-wide keyword the property cannot render (`display:initial`, also from `var(--x, initial)`), and a `var()` declaration whose `unset` the renderer cannot render (`display:var(--missing)` computes to `inline`) | Fails |
 | B | `FPDF1203` | Valid selectors FactsPDF does not match: other pseudo-classes and pseudo-elements (`:hover`, `::before`, `:not(…)`), `&` needing `:is()` to match a complex selector | Fails |
-| B | `FPDF1204` | Known at-rules (`@font-face`, `@import`, `@supports`, `@layer`, `@container`, `@namespace`, `@charset`, …), `@page` forms outside [its supported subset](#css-page-paper-margins-and-margin-boxes) (page selectors such as `@page :first`), media queries other than one `print` or `all` (`@media screen`, also as a `style` element's `media`), declarations directly inside `@media`, and `link` stylesheets | Fails |
+| B | `FPDF1204` | Known at-rules (`@font-face`, `@container`, `@namespace`, `@charset`, …), `@page` forms outside [its supported subset](#css-page-paper-margins-and-margin-boxes) (page selectors such as `@page :first`), unmodelled media features (`@media (hover)`, also in a `media` attribute), undecidable `@supports` tests, declarations directly inside `@media`, and `link` stylesheets or `@import` whose text was not supplied | Fails |
 | B | any | What cannot be proven invalid: values of properties without a grammar here (`box-shadow`, `background`, `transform`, `filter`, transitions, animations, grid, …), values holding a known function (`calc()`, `rgb()`), values that are valid in quirks mode (unitless lengths, hashless hex colours), arguments of functional pseudo-classes (`:is(…)`, `:nth-child(…)`), namespace prefixes and the nesting selector | Fails, as in strict mode |
 | C | `FPDF1205` and the other limit codes | Every resource limit (`MaxCssCharacters`, `MaxCssSelectors`, `MaxCssDeclarations`, `MaxCssMatchOperations`, `MaxCssSyntaxNodes`, `MaxCssSyntaxDepth`, element, depth, page and output limits) | Fails |
 

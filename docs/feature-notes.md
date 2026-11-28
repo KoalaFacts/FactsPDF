@@ -174,6 +174,10 @@ Design-token stylesheets declare colours, font sizes and spacing once as custom 
 
 Strict mode stays the default: every CSS construct FactsPDF does not render exactly fails with its `FPDF` code. Non-strict mode (`Pdf.Write().WithStrict(false)`, CLI `--strict false` or `--strict=false`) drops CSS that is invalid per the CSS specifications exactly as a browser drops it, so a stylesheet written for browsers with a typo or a stray vendor prefix still renders: an unknown property (`colr:red`, `-moz-transform`) or at-rule (`@frobnicate`), a value its property cannot take (`color:bogus`, `padding:-4pt`, five `margin` values), an invalid selector list (the whole rule), CSS Syntax errors (bad strings, stray braces) and `var()` declarations invalid at computed-value time (which compute as `unset`). Each is reported as a `PdfWarning` with the code, message and location strict mode throws (`WithWarnings(handler)`; the CLI prints `warning FPDF1201: … Location: line 4, column 6.` and exits 0), in source order and bounded by `MaxCssWarnings`. A `style` element with a non-CSS `type` (`text/less`, `text/css; charset=utf-8`) is not a stylesheet in browsers, so non-strict mode ignores the whole element with a warning. Valid CSS FactsPDF does not implement (`position:absolute`, `:hover`, `@font-face`, `display:flex`) still fails in both modes, and declarations written directly inside `@media` keep failing because Chrome drops the following rule with them, and so does every limit. The page renders byte-identical to the same page with the dropped CSS removed. Invalidity is decided by superset grammars, Chrome's property list and the specifications' selector and at-rule names, checked against Chrome 158 (no vector the grammars reject is accepted by Chrome); what cannot be proven invalid fails as in strict mode ([contract](css-stylesheets.md#strict-and-non-strict-css), `NonStrictCssTests.cs`).
 
+### Print media queries, @supports and external stylesheets
+
+Stylesheets written for the web now print the way Chrome prints them. `@media` (and the `media` attribute of `style` and stylesheet `link` elements) is evaluated as Chrome evaluates it when printing: `print` and `all` match and `screen` does not, `not`/`only`/`and`/`or` combine conditions, and `width`, `height`, `aspect-ratio` (with `min-`/`max-` and the range syntax `(400px <= width < 700px)`) and `orientation` read the page area, while `color`, `monochrome`, `color-index` and `grid` take a colour page's fixed values. A responsive `@media (max-width:600px)` block therefore applies on an A4 page exactly when Chrome applies it, and a `@media screen` block is skipped instead of failing. `@supports` answers as Chrome's grammar does (true for a declaration FactsPDF compiles, false for one the specifications prove invalid). `<link rel="stylesheet">` and `@import` (with `layer`, `supports()` and media) apply stylesheets the caller supplies by their exact href with `WithStylesheet(href, css)` or `--stylesheet href=path`; nothing is ever downloaded. Media features whose print value is not modelled (`hover`, `resolution`, `prefers-*` …), undecidable `@supports` tests, `@container`, stylesheets that were not supplied and import cycles fail `FPDF1204` ([media queries](css-stylesheets.md#media-queries-supports-and-container), [external stylesheets](css-stylesheets.md#external-stylesheets-and-import), `MediaQueryTests.cs`, `SupportsRuleTests.cs`, `ExternalStylesheetTests.cs`).
+
 ### Print-only stylesheet rules for business reports (source-only)
 
 Reusable report stylesheets can now wrap existing supported CSS in **`@media print { ... }`** or **`@media all { ... }`**. For example:
@@ -188,7 +192,7 @@ Reusable report stylesheets can now wrap existing supported CSS in **`@media pri
 <section class="invoice"><p>Inspection completed</p></section>
 ```
 
-Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No external stylesheets or browser are needed. Only one bare media type (`print` or `all`) per block is supported; `screen`, conditional queries, comma lists, nested `@media`, `@supports`, `@container`, `@import` and new elements/properties are still rejected with explicit errors, including inside rules that do not match any element.
+Unlike parse-only CSS, these scoped rules participate in ordinary source order, specificity, inheritance and `!important`, and change **real PDF fonts, text layout, box paint and pagination**. No browser is needed. Full print media queries are now evaluated (see [Print media queries, @supports and external stylesheets](#print-media-queries-supports-and-external-stylesheets)); a block that does not match when printing is ignored, as Chrome ignores it.
 
 The [44-record multi-page print report](../examples/report-print-media.html) is compared against a [separately written inline-style PDF oracle](../examples/report-print-media-oracle.html), with NUnit, supplied TrueType, managed CLI, Native AOT qpdf/Poppler and protected failure/retry checks. Bounded engine source [`70f37e7e`](https://github.com/KoalaFacts/FactsPDF/commit/70f37e7e881bade30851ecaa06528a27813f0403). This is not full CSS Media Queries, a public package, new private binary, human PDF approval or a customer licence.
 
@@ -1300,6 +1304,10 @@ A separate, strictly one-page fixed-`height` panel subset is documented above.
 
 ## Images
 
+### Images written inline as data: URLs
+
+`<img src="data:image/png;base64,…">` and `data:image/jpeg;base64,…` now render like the same image bound with `WithImage`: each distinct URL is decoded once through the bounded image loader and counts against `MaxImageResources` and `MaxTotalImageBytes` together with the bound images. Other media types, parameters, percent-encoded bodies and unpadded base64 fail `FPDF1103` ([data URLs](images.md#data-urls), `LinkTargetAndDataImageTests.cs`).
+
 ### Inline images and svgs on the line, as in Chrome
 
 A logo header (`<header><svg …></svg></header>`) was about 4px shorter than in Chrome: FactsPDF laid every `img` and `svg` out as a block, while Chrome puts a default (`display:inline`) image on a line box whose strut leaves the text's descender space below it. An `img` or `svg` is now an atomic inline in its paragraph's line boxes: its bottom sits on the baseline, the line keeps the strut, `vertical-align` (`baseline`, `middle`, `top`, `bottom`, `text-top`, `text-bottom`, lengths and percentages) moves it, it wraps as one unit with a wrap opportunity on each side, it can sit between words in a paragraph, `span`, link (whose annotation covers its box) or list item, and a line holding a tall image moves to the next page as a unit. Padding, borders and a background paint with it; margins fail `FPDF1201`. `display:block` (and `display:inline-block`, which is the same as inline for an image) is accepted on `img` and `svg`, and `display:block` keeps the old block layout byte for byte. Pages whose images were default-inline now have the gap below them, like Chrome ([inline images in line boxes](images.md#inline-images-in-line-boxes), `InlineReplacedElementTests.cs`).
@@ -1573,9 +1581,14 @@ block descendants and general DOM navigation fail. `target` (`_blank`, `_self`,
 `nofollow`, `external`, `sponsored`, `ugc` …) are validated and ignored, since a
 PDF link always opens outside the document; an empty or other underscore `target`
 and an empty or unknown `rel` fail `FPDF1103` (`AnchorTargetRelTests.cs`). A `<base>` in the
-head never makes a relative `href` acceptable (`BaseElementTests.cs`).
-Clickable linked images, `download`, fragments, local-page destinations and full HTML anchor
-semantics are not implemented. Links are external PDF actions, not embedded
+head with an absolute `http`/`https` `href` makes relative `href`s (paths, queries,
+fragments) resolve against it as Chrome resolves them; a relative base, which would resolve
+against the unknown document URL, does not (`BaseElementTests.cs`). Absolute `http` and `https`
+URLs, fragments included, are accepted when written exactly as Chrome serializes them
+(`http://example.com/a#b`, not `http://Example.com` or `http://example.com:80/`), so the PDF
+holds the same URI Chrome writes (`LinkTargetAndDataImageTests.cs`). `download`, in-document
+`#fragment` links without a base (Chrome writes them as GoTo destinations at the element) and
+full HTML anchor semantics are not implemented. Links are external PDF actions, not embedded
 content or a claim that target addresses are trusted.
 
 [Business order sample](../examples/report-clickable-orders.html),
