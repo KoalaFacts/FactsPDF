@@ -38,35 +38,42 @@ internal static class InlineCss
         switch (name)
         {
             case "font-weight":
-                // Relative weights operate on the engine's two provided faces:
-                // bolder chooses bold and lighter chooses normal. At an edge
-                // of this binary ladder the same role remains selected.
-                // This is deliberately not intermediate CSS 100–900 matching.
+                // A computed weight from 1 to 1000 (CSS Fonts 4). Font matching picks the face
+                // (FontMatcher); for the explicit default chains that is bold above 500. bolder and
+                // lighter here are relative to the weight the style already holds, which the cascade
+                // passes in as the inherited one (CssDeclarations applies them from the parent).
                 if (value is "bolder" or "lighter")
                 {
-                    style.Bold = value == "bolder";
+                    style.Weight = RelativeWeight(style.Weight, value == "bolder");
                     break;
                 }
                 var weight = value switch { "normal" => 400, "bold" => 700, _ => Number(value, offset) };
-                // The engine has only two explicit weight roles, 400 and 700.
-                // Support the common hundred-step CSS values while resolving
-                // 100–500 to the provided normal face and 600–900 to bold.
-                // Do not synthesize intermediate font weights or infer faces.
-                if (weight is < 100 or > 900 || weight % 100 != 0)
-                    throw Invalid("font-weight accepts normal/bold or numeric hundreds from 100 through 900.", offset);
-                style.Bold = weight >= 600;
+                if (weight is < 1 or > 1000)
+                    throw Invalid("font-weight requires normal, bold, bolder, lighter or a number from 1 to 1000.", offset);
+                style.Weight = (float)weight;
                 break;
             case "font-style":
-                style.Italic = value switch
+                style.Slant = value switch
                 {
-                    "normal" => false, "italic" => true,
-                    _ => throw Invalid("font-style supports only normal and italic.", offset)
+                    "normal" => FontSlant.Normal, "italic" => FontSlant.Italic, "oblique" => FontSlant.Oblique,
+                    _ => throw Invalid("font-style requires normal, italic or oblique with an optional angle from 0deg to 90deg.", offset)
                 };
                 break;
+            case "font-stretch":
+                if (!value.EndsWith('%')) throw Invalid("font-stretch requires a keyword or a non-negative percentage.", offset);
+                var stretch = Number(value[..^1], offset);
+                if (stretch is < 0 or > 1000) throw Invalid("font-stretch requires a keyword or a non-negative percentage.", offset);
+                style.Stretch = (float)stretch;
+                break;
             case "font-size":
-                var size = KeywordFontSize(value, style.FontSize) ?? Length(value, offset);
+                var keywordSize = KeywordFontSize(value, style.FontSize);
+                var size = keywordSize ?? Length(value, offset);
                 if (size is < 1 or > 144) throw Invalid("font-size must be between 1pt and 144pt.", offset);
                 style.FontSize = size;
+                // An absolute length marks the size absolute (Blink's FontDescription::IsAbsoluteSize);
+                // an absolute-size keyword clears it; smaller and larger keep the inherited kind.
+                if (keywordSize is null) style.FontSizeAbsolute = true;
+                else if (value is not ("smaller" or "larger")) style.FontSizeAbsolute = false;
                 break;
             case "color":
                 // The computed colour of currentColor is the inherited text
@@ -296,6 +303,11 @@ internal static class InlineCss
         }
         return decoration;
     }
+
+    /// <summary>CSS Fonts 4 §2.2 relative weights: bolder and lighter of the inherited weight.</summary>
+    internal static float RelativeWeight(float inherited, bool bolder) => bolder
+        ? inherited < 350 ? 400 : inherited < 550 ? 700 : inherited < 900 ? 900 : inherited
+        : inherited < 100 ? inherited : inherited < 550 ? 100 : inherited < 750 ? 400 : 700;
 
     internal static double? KeywordFontSize(string value, double parentFontSize) => value switch
     {

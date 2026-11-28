@@ -187,10 +187,7 @@ public sealed class FontShorthandTests
 
     // Valid CSS the renderer cannot draw fails exactly as the longhand does, at the offending token.
     [TestCase(".a{font:small-caps 12pt F}", "small-caps", "font-variant supports only normal")]
-    [TestCase(".a{font:condensed 12pt F}", "condensed", "font-stretch supports only normal")]
-    [TestCase(".a{font:ultra-expanded bold 12pt F}", "ultra-expanded", "font-stretch supports only normal")]
-    [TestCase(".a{font:oblique 12pt F}", "oblique", "font-style requires normal or italic")]
-    [TestCase(".a{font:450 12pt F}", "450", "font-weight requires")]
+    [TestCase(".a{font:oblique -10deg 12pt F}", "-10deg", "negative angle")]
     [TestCase(".a{font:0 F}", "0 F", "font-size must be between 1pt and 144pt")]
     [TestCase(".a{font:12pt \"\"}", "\"\"", "font-family supports only")]
     [TestCase(".a{font:12pt/0 F}", "0 F", "line-height")]

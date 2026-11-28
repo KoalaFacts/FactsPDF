@@ -8,7 +8,7 @@ namespace FactsPDF.CommandLine;
 /// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
 public static class CliApplication
 {
-    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...] [--strict true|false]\n" +
+    private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--font-face path ...] [--font-family name=path ...] [--font-generic generic=family ...] [--font-resource url=path ...] [--image name=path ...] [--strict true|false]\n" +
         "Usage: FactsPDF.Cli --help\n" +
         "Usage: FactsPDF.Cli --version\n" +
         "Browser-free business-report HTML/CSS subset (inline CSS and embedded <style> rules). Supply static TrueType fonts for simple Unicode/Chinese text.\n" +
@@ -25,6 +25,7 @@ public static class CliApplication
         "--page-furniture reads one explicit strict UTF-8 JSON file (at most 65536 bytes including BOM) for styled regions, {page}/{pages}, and first-page replacement.\n" +
         "Structured furniture cannot be combined with --page-numbers, --header-text or --footer-text, including empty legacy text.\n" +
         "Repeat each font option for its independent ordered fallback chain (at most eight paths total). '-' reads stdin or writes binary PDF to stdout.\n" +
+        "--font-face path registers a face under its name-table family names, --font-family name=path under a name you choose, for CSS font-family matching; --font-generic generic=family maps serif, sans-serif, monospace, cursive, fantasy, system-ui or math to a registered family; --font-resource url=path binds the exact url() text of an @font-face src (at most 32 such fonts; TTF, WOFF, WOFF2 or the first face of a TTC; never downloaded).\n" +
         "--image name=path supplies an explicit JPEG or supported static PNG resource (at most 16; no network downloads). Format is detected from content.\n" +
         "--strict true (default) fails on every CSS construct that is not rendered exactly. --strict false (also --strict=false) drops CSS that is invalid per the CSS specifications, as a browser does, prints each as a warning on stderr and still exits 0; valid but unsupported CSS still fails.\n" +
         "--version prints the built CLI informational version for deployment and support; no document or resources are read.\n";
@@ -56,6 +57,8 @@ public static class CliApplication
             string? title = null; string? author = null; string? subject = null; string? keywords = null;
             bool? strict = null;
             var imagePaths = new Dictionary<string, string>(StringComparer.Ordinal);
+            var familyFonts = new List<(string Option, string? Key, string Path)>();
+            var genericFamilies = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var i = 0; i < args.Length; i++)
             {
                 var arg = args[i];
@@ -129,6 +132,29 @@ public static class CliApplication
                         : value.Equals("false", StringComparison.OrdinalIgnoreCase) ? false
                         : throw new ArgumentException("--strict requires true or false.");
                 }
+                else if (arg is "--font-face" or "--font-family" or "--font-resource")
+                {
+                    if (++i >= args.Length) throw new ArgumentException($"{arg} requires {(arg == "--font-face" ? "a font file path" : arg == "--font-family" ? "name=path" : "url=path")}.");
+                    string? key = null; var path = args[i];
+                    if (arg != "--font-face")
+                    {
+                        var equal = arg == "--font-resource" ? args[i].LastIndexOf('=') : args[i].IndexOf('=');
+                        if (equal <= 0) throw new ArgumentException($"{arg} requires {(arg == "--font-family" ? "name=path" : "url=path")}.");
+                        key = args[i][..equal]; path = args[i][(equal + 1)..];
+                    }
+                    if (string.IsNullOrWhiteSpace(path) || path == "-" || path.StartsWith("--", StringComparison.Ordinal))
+                        throw new ArgumentException($"{arg} requires an explicit font file path.");
+                    if (familyFonts.Count >= 32) throw new ArgumentException("At most 32 --font-face, --font-family and --font-resource fonts are allowed.");
+                    familyFonts.Add((arg, key, Path.GetFullPath(path)));
+                }
+                else if (arg == "--font-generic")
+                {
+                    if (++i >= args.Length) throw new ArgumentException("--font-generic requires generic=family.");
+                    var equal = args[i].IndexOf('=');
+                    if (equal <= 0 || equal == args[i].Length - 1) throw new ArgumentException("--font-generic requires generic=family.");
+                    if (!genericFamilies.TryAdd(args[i][..equal].Trim().ToLowerInvariant(), args[i][(equal + 1)..]))
+                        throw new ArgumentException("Each generic family may be mapped once.");
+                }
                 else if (arg == "--image")
                 {
                     if (++i >= args.Length) throw new ArgumentException("--image requires name=path.");
@@ -151,6 +177,7 @@ public static class CliApplication
             var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             if (destination is not null && (source is not null && string.Equals(source, destination, comparison)
                 || fontPaths.Any(path => string.Equals(path.Path, destination, comparison))
+                || familyFonts.Any(font => string.Equals(font.Path, destination, comparison))
                 || imagePaths.Values.Any(path => string.Equals(path, destination, comparison))
                 || furniturePath is not null && string.Equals(furniturePath, destination, comparison)))
                 throw new ArgumentException("Output must be different from the input HTML and every supplied font, image or PageFurniture file.");
@@ -208,11 +235,36 @@ public static class CliApplication
                 var font = PdfFont.FromStream(fontStream, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), cancellationToken);
                 fonts[role].Add(font); totalFontBytes += font.ByteLength;
             }
+            // Registered families, generic mappings and @font-face resources load the same way and
+            // share the total font budget; a path given twice loads once.
+            var loaded = new Dictionary<string, PdfFont>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            var registered = new List<(string Option, string? Key, PdfFont Font)>();
+            foreach (var (option, key, path) in familyFonts)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!loaded.TryGetValue(path, out var font))
+                {
+                    using var fontStream = File.OpenRead(path);
+                    var remaining = defaults.MaxTotalFontBytes - totalFontBytes;
+                    if (remaining <= 0) throw new FactsPdfException("FPDF1503", "Fonts exceed MaxTotalFontBytes.");
+                    font = PdfFont.FromStream(fontStream, (int)Math.Min(PdfFont.DefaultMaxBytes, remaining), cancellationToken);
+                    loaded.Add(path, font); totalFontBytes += font.ByteLength;
+                }
+                registered.Add((option, key, font));
+            }
             writer = writer.WithFonts(f =>
             {
                 f.Regular([.. fonts[0]]).Bold([.. fonts[1]]).Italic([.. fonts[2]]).BoldItalic([.. fonts[3]]);
+                foreach (var (option, key, font) in registered)
+                {
+                    if (option == "--font-face") f.Faces(font);
+                    else if (option == "--font-family") f.Family(key!, font);
+                }
+                foreach (var (generic, family) in genericFamilies) f.Generic(generic, family);
                 if (subsetFonts) f.Subset();
             });
+            foreach (var (option, key, font) in registered)
+                if (option == "--font-resource") writer = writer.WithFontResource(key!, font);
             var totalImageBytes = 0;
             foreach (var (name, path) in imagePaths)
             {
@@ -249,7 +301,8 @@ public static class CliApplication
                 "FPDF1301" => "Supply a trusted static TrueType font covering this text with --font path.ttf; fonts are not discovered or downloaded automatically.",
                 "FPDF1504" => "Add a font covering the reported character to the matching fallback chain: --font, --font-bold, --font-italic or --font-bold-italic. Fallback stays within its role.",
                 "FPDF1505" => "Check the font licence and OS/2 fsType. Supply a different trusted TrueType font allowing installable/editable embedding; never alter permission bits or bypass the restriction.",
-                "FPDF1507" => "Supply the requested style with --font-bold, --font-italic or --font-bold-italic. Normal --font does not provide these roles; styles are not synthesized.",
+                "FPDF1507" => "Supply the requested style with --font-bold, --font-italic or --font-bold-italic, or register the family's real bold/italic face with --font-face. Normal --font does not provide these roles; styles are not synthesized.",
+                "FPDF1508" => "Bind the exact url() text of the @font-face src with --font-resource url=path. Fonts are never downloaded.",
                 "FPDF1604" => "Bind the exact case-sensitive HTML src name with --image name=path to a supported PNG or baseline JPEG. HTML does not load files or URLs automatically.",
                 _ => null
             };

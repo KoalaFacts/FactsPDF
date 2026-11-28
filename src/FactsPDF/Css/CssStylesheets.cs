@@ -143,6 +143,13 @@ internal sealed class CssStylesheets
     /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
     internal CssPageRules? PageRules { get; private set; }
 
+    // The @font-face rules in source order, and the conversion's resolver of font-family lists over
+    // them and the caller's registered families (created when the first list is resolved, after
+    // every stylesheet has been collected).
+    private List<FontFaceRule>? fontFaceRules;
+    private FontFamilyResolver? fonts;
+    internal FontFamilyResolver Fonts => fonts ??= new(options, fontFaceRules ?? []);
+
     /// <summary>Whether any declaration sets a counter or prints one, so the reader tracks counters.</summary>
     internal bool UsesCounters => budget.UsesCounters;
 
@@ -151,7 +158,7 @@ internal sealed class CssStylesheets
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1 || options.MaxCssCustomProperties < 1)
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         this.options = options;
-        winners = pooledWinners ?? new Winner?[(int)CssProperty.TextOverflow + 1];
+        winners = pooledWinners ?? new Winner?[(int)CssProperty.FontFamily + 1];
         userAgentWinners = pooledUserAgentWinners ?? new Winner?[UserAgentStyleSheet.Properties.Length];
         pooledWinners = pooledUserAgentWinners = null;
         lastCreated = this;
@@ -712,10 +719,21 @@ internal sealed class CssStylesheets
             dropped.Add(nested ? "FPDF1203" : "FPDF1204", nested ? "Nested CSS rules are not supported by the PDF renderer." : "Only block-form @media print/all is supported.", at.Span.Start);
             return;
         }
+        // A web font face: matched by font-family like a registered family (which it hides), its
+        // source loaded from a caller-bound resource, a data: URL or local() on first use.
+        if (at.Name.Equals("font-face", StringComparison.OrdinalIgnoreCase) && !nested)
+        {
+            try
+            {
+                if (CssFontFace.Parse(at, budget.Warnings) is { } face) (fontFaceRules ??= []).Add(face);
+            }
+            catch (FactsPdfException error) when (budget.Warnings is { } warnings && error.Code == "FPDF1204") { warnings.Add(error); }
+            return;
+        }
         // Paged-media page context: size, margins and the six top/bottom margin boxes.
         if (at.Name.Equals("page", StringComparison.OrdinalIgnoreCase) && !nested)
         {
-            (PageRules ??= new()).Add(at, budget);
+            (PageRules ??= new() { Fonts = () => Fonts }).Add(at, budget);
             return;
         }
         if (at.Name.Equals("layer", StringComparison.OrdinalIgnoreCase))
@@ -753,6 +771,7 @@ internal sealed class CssStylesheets
                 && (inner.Name.Equals("keyframes", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("-webkit-keyframes", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("page", StringComparison.OrdinalIgnoreCase)
+                    || inner.Name.Equals("font-face", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("media", StringComparison.OrdinalIgnoreCase)
                     || inner.Name.Equals("layer", StringComparison.OrdinalIgnoreCase)))))
             throw new FactsPdfException("FPDF1204",
@@ -1615,6 +1634,16 @@ internal sealed class CssStylesheets
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 CssDeclarations.ApplyPanelVerticalMargin(Own(), parentBox, declaration,
                     rootFontSize, style.FontSize);
+            else if (declaration.Property == CssProperty.FontFamily && declaration.Value is not ("inherit" or "initial" or "unset"))
+            {
+                // Resolved against the registered families, generic mappings and @font-face rules.
+                var families = Fonts.List(declaration.Value);
+                if (!ReferenceEquals(families, style.Families))
+                {
+                    if (!styleOwned) { style = style with { }; styleOwned = true; }
+                    style.Families = families;
+                }
+            }
             else
             {
                 // html font-size:rem refers to the initial size; other rem
@@ -1649,6 +1678,14 @@ internal sealed class CssStylesheets
                         || cellTextIndentHost && declaration.Property is CssProperty.TextIndent, computedRoot);
             }
         }
+        // Text whose family list is exactly the generic monospace (the user-agent pre, code, kbd and
+        // samp) gets a font size from Chrome's 13px monospace default whenever its size is not an
+        // absolute length (Blink's FontBuilder::CheckForGenericFamilyChange). FactsPDF does not
+        // rescale sizes, so once monospace is mapped to a registered family that case fails.
+        if (styleOwned && style.Families is { IsGenericMonospaceOnly: true } && !style.FontSizeAbsolute)
+            throw new FactsPdfException("FPDF1202",
+                "font-family: monospace alone resolves to the registered monospace family, and Chrome then sizes keyword and relative font sizes from its 13px monospace default, which FactsPDF does not implement: give the element an absolute font-size (pt or px) or write font-family: monospace, monospace.",
+                winners[(int)CssProperty.FontFamily] is { UserAgent: false } family ? family.Declaration.Offset : elementOffset);
         if (box.BackgroundClip == BackgroundClip.ContentBox && (box.PaddingTop.IsPercent || box.PaddingRight.IsPercent
                 || box.PaddingBottom.IsPercent || box.PaddingLeft.IsPercent))
             throw new FactsPdfException("FPDF1201",

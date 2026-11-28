@@ -96,7 +96,7 @@ internal static class HeadingKeep
                     for (var g = 0; g < line.Glyphs.Count;)
                     {
                         var first = line.Glyphs[g++];
-                        while (g < line.Glyphs.Count && !first.IsAtom && !line.Glyphs[g].IsAtom && line.Glyphs[g].Style == first.Style &&
+                        while (g < line.Glyphs.Count && !first.IsAtom && !line.Glyphs[g].IsAtom && TextStyle.PaintsAlike(line.Glyphs[g].Style, first.Style) &&
                             ReferenceEquals(line.Glyphs[g].Font, first.Font))
                         {
                             if ((g & 255) == 0) cancellation.ThrowIfCancellationRequested();

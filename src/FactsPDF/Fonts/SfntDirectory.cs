@@ -13,8 +13,10 @@ internal sealed class SfntDirectory
     {
         this.data = data;
         Need(data.Length >= 12, "Truncated sfnt header.");
-        if (U32(data, 0) != 0x00010000)
-            throw new FactsPdfException("FPDF1502", "Only static TrueType sfnt fonts with glyf outlines are supported (not TTC, CFF, WOFF or WOFF2).");
+        if (U32(data, 0) == FontContainer.OpenTypeCffTag)
+            throw new FactsPdfException("FPDF1502", "OpenType fonts with CFF outlines (OTTO) are not supported; supply a font with TrueType (glyf) outlines.");
+        if (U32(data, 0) != FontContainer.TrueTypeTag)
+            throw new FactsPdfException("FPDF1502", "Only TrueType-outline sfnt fonts (plain, in a collection, WOFF or WOFF2) are supported.");
         var count = U16(data, 4);
         Need(count is > 0 and <= 256 && 12L + 16L * count <= data.Length, "Invalid sfnt directory.");
         var ranges = new List<(int Start, int End)>();
@@ -29,8 +31,10 @@ internal sealed class SfntDirectory
         }
         ranges.Sort((a, b) => a.Start.CompareTo(b.Start));
         for (var i = 1; i < ranges.Count; i++) Need(ranges[i - 1].End <= ranges[i].Start, "Overlapping sfnt tables.");
-        foreach (var tag in new[] { "fvar", "gvar", "CFF ", "CFF2", "COLR", "CBDT", "sbix", "SVG " })
-            if (tables.ContainsKey(tag)) throw new FactsPdfException("FPDF1502", "Variable, CFF and color fonts are not supported in this increment.");
+        if (tables.ContainsKey("fvar") || tables.ContainsKey("gvar"))
+            throw new FactsPdfException("FPDF1502", "Variable fonts (fvar/gvar) are not supported; supply a static instance of the font.");
+        foreach (var tag in new[] { "CFF ", "CFF2", "COLR", "CBDT", "sbix", "SVG " })
+            if (tables.ContainsKey(tag)) throw new FactsPdfException("FPDF1502", "CFF outlines and color fonts are not supported; supply a TrueType-outline font.");
     }
 
     internal ReadOnlySpan<byte> Table(string tag, int minimum)

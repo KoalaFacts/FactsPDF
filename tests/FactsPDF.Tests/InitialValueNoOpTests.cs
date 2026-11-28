@@ -152,8 +152,6 @@ public sealed class InitialValueNoOpTests
     [TestCase("font-variation-settings:'wght' 700")]
     [TestCase("font-variant-numeric:tabular-nums")]
     [TestCase("font-variant-ligatures:none")]
-    [TestCase("font-stretch:condensed")]
-    [TestCase("font-stretch:100%")]
     [TestCase("font-optical-sizing:none")]
     [TestCase("font-size-adjust:0.5")]
     [TestCase("font-variant:small-caps")]

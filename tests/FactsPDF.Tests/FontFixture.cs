@@ -8,7 +8,8 @@ namespace FactsPDF.Tests;
 internal static class FontFixture
 {
     public static byte[] Create(bool format12 = true, bool latinOnly = false, ushort fsType = 0, bool ranged4 = false,
-        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0, int emptyGlyphs = 0, bool quotationMarks = false)
+        bool listDigits = false, bool unicodeCaseSymbols = false, bool listCaseMarkers = false, int cjkScalars = 0, int emptyGlyphs = 0, bool quotationMarks = false,
+        string? family = null)
     {
         var map = new SortedDictionary<int, ushort>
         {
@@ -90,8 +91,22 @@ internal static class FontFixture
         using var glyfStream = new MemoryStream(); var loca = new byte[(13 + emptyGlyphs) * 4];
         for (var i = 0; i < 12; i++) { U32(loca, i * 4, (uint)glyfStream.Length); if (i != 1) glyfStream.Write(rectangle); }
         for (var i = 12; i <= 12 + emptyGlyphs; i++) U32(loca, i * 4, (uint)glyfStream.Length);
-        var label = Encoding.BigEndianUnicode.GetBytes("FactsPDFTest"); var name = new byte[18 + label.Length];
-        U16(name, 2, 1); U16(name, 4, 18); U16(name, 6, 3); U16(name, 8, 1); U16(name, 10, 0x409); U16(name, 12, 6); U16(name, 14, label.Length); label.CopyTo(name, 18);
+        var label = Encoding.BigEndianUnicode.GetBytes("FactsPDFTest"); byte[] name;
+        if (family is null)
+        {
+            name = new byte[18 + label.Length];
+            U16(name, 2, 1); U16(name, 4, 18); U16(name, 6, 3); U16(name, 8, 1); U16(name, 10, 0x409); U16(name, 12, 6); U16(name, 14, label.Length); label.CopyTo(name, 18);
+        }
+        else
+        {
+            // A family name record (ID 1) before the PostScript name (ID 6), both Windows Unicode English.
+            var familyBytes = Encoding.BigEndianUnicode.GetBytes(family);
+            name = new byte[30 + familyBytes.Length + label.Length];
+            U16(name, 2, 2); U16(name, 4, 30);
+            U16(name, 6, 3); U16(name, 8, 1); U16(name, 10, 0x409); U16(name, 12, 1); U16(name, 14, familyBytes.Length); U16(name, 16, 0);
+            U16(name, 18, 3); U16(name, 20, 1); U16(name, 22, 0x409); U16(name, 24, 6); U16(name, 26, label.Length); U16(name, 28, familyBytes.Length);
+            familyBytes.CopyTo(name, 30); label.CopyTo(name, 30 + familyBytes.Length);
+        }
         var post = new byte[32]; U32(post, 0, 0x00030000);
         var tables = new SortedDictionary<string, byte[]>(StringComparer.Ordinal)
         { ["OS/2"] = os2, ["cmap"] = cmap, ["glyf"] = glyfStream.ToArray(), ["head"] = head, ["hhea"] = hhea, ["hmtx"] = hmtx, ["loca"] = loca, ["maxp"] = maxp, ["name"] = name, ["post"] = post };

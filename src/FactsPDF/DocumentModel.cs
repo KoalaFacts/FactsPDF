@@ -108,8 +108,31 @@ internal sealed record TextStyle
     public double MarginAfter { get; set; }
     public bool BreakBefore { get; set; }
     public bool BreakAfter { get; set; }
-    public bool Bold { get; set; }
-    public bool Italic { get; set; }
+    /// <summary>Computed font-weight, 1 to 1000 (CSS Fonts 4); 400 is normal.</summary>
+    public float Weight { get; set; } = 400;
+    /// <summary>Computed font-style as font matching sees it (oblique 0deg computes upright).</summary>
+    public FontSlant Slant { get; set; }
+    /// <summary>Computed font-stretch percentage; 100 is normal.</summary>
+    public float Stretch { get; set; } = 100;
+    /// <summary>The resolved font-family list, or null when no entry names a family this conversion has (the default chains apply).</summary>
+    public FontFamilyList? Families { get; set; }
+    /// <summary>Whether the weight selects the bold default chain (above 500); setting it writes 700 or 400.</summary>
+    public bool Bold { get => Weight > 500; set => Weight = value ? 700 : 400; }
+    /// <summary>Whether the style is italic or oblique; setting it writes italic or normal.</summary>
+    public bool Italic { get => Slant != FontSlant.Normal; set => Slant = value ? FontSlant.Italic : FontSlant.Normal; }
+
+    /// <summary>
+    /// Whether glyphs in these styles, drawn with the same font, paint identically and so share one
+    /// placed run: the styles are equal, or differ only in the font matching inputs (weight, style,
+    /// stretch, family), which have already chosen the font. Weights 600 and 800 both drawn with the
+    /// bold chain stay one run, as they did when the style held only a bold flag.
+    /// </summary>
+    internal static bool PaintsAlike(TextStyle a, TextStyle b)
+    {
+        if (a == b) return true;
+        if (a.Weight == b.Weight && a.Slant == b.Slant && a.Stretch == b.Stretch && ReferenceEquals(a.Families, b.Families)) return false;
+        return (a with { Weight = b.Weight, Slant = b.Slant, Stretch = b.Stretch, Families = b.Families }) == b;
+    }
     public bool KeepWithNext { get; set; }
     public TextDecoration Decoration { get; set; }
     public double? AbsoluteLineHeight { get; set; }
@@ -137,6 +160,12 @@ internal sealed record TextStyle
     public LineBreakStrictness LineBreak { get => (LineBreakStrictness)((flow >> 3) & 3); set => flow = (byte)((flow & ~(3 << 3)) | ((int)value << 3)); }
     /// <summary>visibility (inherited): hidden and collapse keep the layout and paint nothing.</summary>
     public TextVisibility Visibility { get => (TextVisibility)((flow >> 5) & 3); set => flow = (byte)((flow & ~(3 << 5)) | ((int)value << 5)); }
+    /// <summary>
+    /// Blink's "absolute size" flag: font-size came from an absolute length here or on an ancestor,
+    /// not from a keyword (the initial medium included). Chrome rescales a keyword-based size when
+    /// the family becomes the generic monospace (to its 13px monospace default); an absolute one never.
+    /// </summary>
+    public bool FontSizeAbsolute { get => (flow & 0x80) != 0; set => Bit(0x80, value); }
     // The line breaking and visibility switches above, packed into one byte: a style is allocated per element.
     private byte flow;
     private void Bit(int bit, bool on) => flow = (byte)(on ? flow | bit : flow & ~bit);

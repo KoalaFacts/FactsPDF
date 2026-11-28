@@ -104,7 +104,7 @@ internal static class TextLines
             {
                 utf16Length = 1; width = first.Width; end = start + 1;
             }
-            while (first.Scalar != 9 && end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
+            while (first.Scalar != 9 && end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && TextStyle.PaintsAlike(line.Glyphs[end].Style, first.Style)
                 && ReferenceEquals(line.Glyphs[end].Font, first.Font) && line.Glyphs[end].Scalar != 9
                 && line.Glyphs[end].Scalar != WordBreakOpportunity)
             {
@@ -787,8 +787,10 @@ internal static class TextLines
                 CheckSimpleScalar(scalar, sourceOffset);
                 PdfFont? chosen = null; ushort glyph = 0;
                 foreach (var font in fonts) { glyph = font.GlyphFor(scalar); if (glyph != 0) { chosen = font; break; } }
-                if (chosen is null) throw role == FontRole.Normal
+                if (chosen is null) throw role.IsPlainNormal
                     ? new FactsPdfException("FPDF1504", $"No supplied font contains U+{scalar:X4}.", sourceOffset)
+                    : role.Families is { } families
+                    ? new FactsPdfException("FPDF1504", $"No face of font-family {families.Names} and no supplied {FontRoles.Name(role)} font contains U+{scalar:X4}.", sourceOffset)
                     : new FactsPdfException("FPDF1504", $"No supplied {FontRoles.Name(role)} font contains U+{scalar:X4}.", sourceOffset);
                 value = (chosen, chosen.Width1000(glyph));
             }

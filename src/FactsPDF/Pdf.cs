@@ -55,6 +55,18 @@ public sealed class PdfWriter
         return new(Options with { Images = new ReadOnlyDictionary<string, PdfImage>(images) });
     }
 
+    /// <summary>Binds a font that an <c>@font-face</c> <c>src: url(...)</c> names; the same URL text replaces the earlier font.</summary>
+    /// <param name="url">The exact, case-sensitive URL text the stylesheet writes inside <c>url()</c>: 1 to 2048 printable ASCII characters. Nothing is downloaded or read from disk.</param>
+    /// <param name="font">The font, loaded with <see cref="PdfFont.FromFile"/>, <see cref="PdfFont.FromBytes"/> or <see cref="PdfFont.FromStream"/> (WOFF, WOFF2 and collections included).</param>
+    public PdfWriter WithFontResource(string url, PdfFont font)
+    {
+        ArgumentNullException.ThrowIfNull(font);
+        if (!FontRoles.ValidResourceName(url))
+            throw new ArgumentException("Use the URL text from the stylesheet: 1–2048 printable ASCII characters without spaces.", nameof(url));
+        var fonts = new Dictionary<string, PdfFont>(Options.FontResources, StringComparer.Ordinal) { [url] = font };
+        return new(Options with { FontResources = new ReadOnlyDictionary<string, PdfFont>(fonts) });
+    }
+
     /// <summary>Sets the paper size, orientation and margins.</summary>
     /// <param name="configure">Configures the page, starting from this writer's current page settings.</param>
     public PdfWriter WithPage(Action<PdfPageSetup> configure)
@@ -330,6 +342,57 @@ public sealed class PdfFontSetup
     /// <summary>Sets the ordered fallback chain for text that is both bold and italic.</summary>
     /// <param name="fonts">Fonts tried in order for each character.</param>
     public PdfFontSetup BoldItalic(params PdfFont[] fonts) { Options = Options with { BoldItalicFonts = Chain(fonts) }; return this; }
+
+    /// <summary>Registers faces under the family names in their name tables (typographic family and family), so CSS
+    /// <c>font-family</c> selects them by name with the CSS font matching algorithm (weight, style and width come from
+    /// each face's OS/2 table). Registered families are never synthesized: a missing bold or italic face fails FPDF1507.</summary>
+    /// <param name="fonts">Faces of one or more families; at most 32 registered faces in total.</param>
+    public PdfFontSetup Faces(params PdfFont[] fonts)
+    {
+        var faces = new List<RegisteredFontFace>(Options.FontFaces);
+        foreach (var font in Chain(fonts))
+        {
+            var family = FontFamilyNames.Fold(font.FamilyName);
+            faces.Add(new(family, font));
+            if (font.LegacyFamilyName is { } legacy && FontFamilyNames.Fold(legacy) is var other && other != family)
+                faces.Add(new(other, font));
+        }
+        Options = Options with { FontFaces = faces };
+        return this;
+    }
+
+    /// <summary>Registers faces under a family name of your choosing, which CSS <c>font-family</c> then selects
+    /// (ASCII case-insensitively) with the CSS font matching algorithm.</summary>
+    /// <param name="name">The family name, as CSS writes it unquoted or in quotes (for example <c>Report Sans</c>).</param>
+    /// <param name="fonts">The family's faces; at most 32 registered faces in total.</param>
+    public PdfFontSetup Family(string name, params PdfFont[] fonts)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var family = FontFamilyNames.Fold(name.Trim());
+        if (FontFamilyNames.IsGeneric(family))
+            throw new ArgumentException("A generic family keyword cannot name a registered family; map it with Generic().", nameof(name));
+        Options = Options with { FontFaces = [.. Options.FontFaces, .. Chain(fonts).Select(font => new RegisteredFontFace(family, font))] };
+        return this;
+    }
+
+    /// <summary>Maps a CSS generic family to a registered family, as a browser maps it to an installed font.</summary>
+    /// <param name="generic">One of <c>serif</c>, <c>sans-serif</c>, <c>monospace</c>, <c>cursive</c>, <c>fantasy</c>, <c>system-ui</c> or <c>math</c>.
+    /// An unmapped generic family uses the explicit default chains.</param>
+    /// <param name="family">A family registered with <see cref="Faces"/> or <see cref="Family"/> (checked when a document is written).</param>
+    public PdfFontSetup Generic(string generic, string family)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(generic);
+        ArgumentException.ThrowIfNullOrWhiteSpace(family);
+        var key = FontFamilyNames.Fold(generic.Trim());
+        if (!FontFamilyNames.IsGeneric(key))
+            throw new ArgumentException("Use serif, sans-serif, monospace, cursive, fantasy, system-ui or math.", nameof(generic));
+        Options = Options with
+        {
+            GenericFamilies = new ReadOnlyDictionary<string, string>(
+                new Dictionary<string, string>(Options.GenericFamilies, StringComparer.Ordinal) { [key] = FontFamilyNames.Fold(family.Trim()) }),
+        };
+        return this;
+    }
 
     /// <summary>Sets the root font size in points, from 1 to 144. The default is 12pt.</summary>
     /// <param name="points">The size in points.</param>

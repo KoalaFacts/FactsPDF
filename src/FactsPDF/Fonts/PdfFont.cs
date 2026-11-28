@@ -4,7 +4,7 @@ using static FactsPDF.SfntDirectory;
 
 namespace FactsPDF;
 
-/// <summary>Immutable explicitly supplied static TrueType font. No filesystem or network discovery.</summary>
+/// <summary>Immutable explicitly supplied static TrueType-outline font (a plain sfnt, one face of a collection, WOFF or WOFF2). No filesystem or network discovery.</summary>
 /// <remarks>Thread-safe. Reuse one instance across conversions: full (non-subset) embedding compresses the font
 /// program on first use and keeps that compressed copy for the lifetime of the instance.</remarks>
 public sealed class PdfFont
@@ -17,6 +17,19 @@ public sealed class PdfFont
     private readonly double scale;
     /// <summary>PostScript name from the font's name table.</summary>
     public string PostScriptName { get; }
+    /// <summary>Family name from the font's name table: the typographic family (name ID 16), else the family (ID 1), else <see cref="PostScriptName"/>.</summary>
+    public string FamilyName { get; }
+    /// <summary>The legacy family name (name ID 1) when the name table has one; CSS also matches the font by it.</summary>
+    internal string? LegacyFamilyName { get; }
+    /// <summary>Full font name (name ID 4) when the name table has one; <c>local()</c> in <c>@font-face</c> matches it.</summary>
+    internal string? FullName { get; }
+    /// <summary>Weight class from the OS/2 table (1 to 1000; 400 when the table records none).</summary>
+    public int Weight { get; }
+    /// <summary>Width from the OS/2 width class as a CSS font-stretch percentage (50 to 200; 100 is normal).</summary>
+    public double Stretch { get; }
+    /// <summary>Whether the OS/2 table marks the face italic or oblique.</summary>
+    public bool IsItalic => Slant != FontSlant.Normal;
+    internal FontSlant Slant { get; }
     /// <summary>Size of the font file in bytes.</summary>
     public int ByteLength => data.Length;
     internal ReadOnlySpan<byte> Data => data;
@@ -98,25 +111,54 @@ public sealed class PdfFont
         XHeight1000 = version >= 2 && S16(os2, 86) > 0 ? S16(os2, 86) * scale
             : x != 0 && GlyphVerticalBounds1000(x).MaxY > 0 ? GlyphVerticalBounds1000(x).MaxY
             : Ascent1000 * 0.56;
-        PostScriptName = ReadName(sfnt.Table("name", 6));
+        var names = sfnt.Table("name", 6);
+        PostScriptName = ReadName(names);
+        LegacyFamilyName = ReadNameString(names, 1);
+        FamilyName = ReadNameString(names, 16) ?? LegacyFamilyName ?? PostScriptName;
+        FullName = ReadNameString(names, 4);
+        // What CSS font matching reads from an installed face: OS/2 weight and width classes and
+        // the italic (bit 0) or oblique (bit 9, OS/2 version 4 and later) selection flags.
+        var weightClass = U16(os2, 4);
+        Weight = weightClass is >= 1 and <= 1000 ? weightClass : 400;
+        Stretch = U16(os2, 6) switch { 1 => 50, 2 => 62.5, 3 => 75, 4 => 87.5, 6 => 112.5, 7 => 125, 8 => 150, 9 => 200, _ => 100 };
+        var selection = U16(os2, 62);
+        Slant = (selection & 1) != 0 ? FontSlant.Italic : version >= 4 && (selection & 0x200) != 0 ? FontSlant.Oblique : FontSlant.Normal;
     }
 
-    /// <summary>Copies and validates a static TrueType (glyf) font.</summary>
-    /// <param name="source">Font file bytes. TTC, CFF/OpenType and variable fonts are rejected.</param>
-    /// <param name="maxBytes">Maximum accepted size in bytes; must be positive.</param>
+    /// <summary>Copies and validates a static TrueType-outline font: a plain sfnt, WOFF, WOFF2, or the first face of a collection.</summary>
+    /// <param name="source">Font file bytes. CFF-outline (OTTO), variable and color fonts are rejected.</param>
+    /// <param name="maxBytes">Maximum accepted size in bytes, of the file and of the decoded font; must be positive.</param>
     /// <param name="cancellationToken">Cancels validation.</param>
     /// <returns>An immutable font that can be shared across conversions and threads.</returns>
     /// <exception cref="FactsPdfException">The bytes are not a supported font or exceed <paramref name="maxBytes"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/> is less than 1.</exception>
     public static PdfFont FromBytes(ReadOnlySpan<byte> source, int maxBytes = DefaultMaxBytes,
         CancellationToken cancellationToken = default)
+        => FromCollection(source, 0, maxBytes, cancellationToken);
+
+    /// <summary>Copies and validates one face of a TrueType collection (TTC); for any other format only face 0 exists.</summary>
+    /// <param name="source">Font file bytes.</param>
+    /// <param name="faceIndex">Zero-based face index; <see cref="CountFaces"/> gives the number of faces.</param>
+    /// <param name="maxBytes">Maximum accepted size in bytes, of the file and of the extracted face; must be positive.</param>
+    /// <param name="cancellationToken">Cancels validation.</param>
+    /// <returns>An immutable font that can be shared across conversions and threads.</returns>
+    /// <exception cref="FactsPdfException">The face does not exist, or is not a supported font.</exception>
+    public static PdfFont FromCollection(ReadOnlySpan<byte> source, int faceIndex, int maxBytes = DefaultMaxBytes,
+        CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBytes);
+        ArgumentOutOfRangeException.ThrowIfNegative(faceIndex);
         cancellationToken.ThrowIfCancellationRequested();
         if (source.Length > maxBytes) throw new FactsPdfException("FPDF1503", "Font exceeds its byte limit.");
-        return new PdfFont(source.ToArray(), cancellationToken);
+        return new PdfFont(FontContainer.Decode(source.ToArray(), faceIndex, maxBytes, cancellationToken), cancellationToken);
     }
-    /// <summary>Reads at most <paramref name="maxBytes"/> + 1 bytes from a stream, then validates them as a static TrueType (glyf) font.</summary>
+
+    /// <summary>The number of faces in a font file: the face count of a TrueType collection, or 1 for any other font.</summary>
+    /// <param name="source">Font file bytes.</param>
+    /// <exception cref="FactsPdfException">The collection header is invalid.</exception>
+    public static int CountFaces(ReadOnlySpan<byte> source) => FontContainer.FaceCount(source);
+
+    /// <summary>Reads at most <paramref name="maxBytes"/> + 1 bytes from a stream, then validates them as a static TrueType-outline font (plain, WOFF, WOFF2 or the first face of a collection).</summary>
     /// <param name="source">Readable stream positioned at the font data. It is not closed.</param>
     /// <param name="maxBytes">Maximum accepted size in bytes; must be positive.</param>
     /// <param name="cancellationToken">Cancels reading and validation.</param>
@@ -140,9 +182,9 @@ public sealed class PdfFont
             if (buffer.Length + count > maxBytes) throw new FactsPdfException("FPDF1503", "Font exceeds its byte limit.");
             buffer.Write(chunk, 0, count);
         }
-        return new PdfFont(buffer.ToArray(), cancellationToken);
+        return new PdfFont(FontContainer.Decode(buffer.ToArray(), 0, maxBytes, cancellationToken), cancellationToken);
     }
-    /// <summary>Reads and validates a static TrueType (glyf) font file.</summary>
+    /// <summary>Reads and validates a static TrueType-outline font file (plain, WOFF, WOFF2 or the first face of a collection).</summary>
     /// <param name="path">Path of the font file; only this file is read.</param>
     /// <param name="maxBytes">Maximum accepted size in bytes; must be positive.</param>
     /// <param name="cancellationToken">Cancels reading and validation.</param>
@@ -198,6 +240,31 @@ public sealed class PdfFont
             if (score > best) { chosen = text; best = score; }
         }
         if (chosen is null) throw new FactsPdfException("FPDF1502", "A supported ASCII PostScript name is required.");
+        return chosen;
+    }
+
+    // A name-table string, preferring the Windows English (US) record as fontconfig and Chrome do,
+    // then any other Windows or Unicode record, then Macintosh Roman. Null when no record has it.
+    // ReadName has already checked that every record lies inside the string storage.
+    private static string? ReadNameString(ReadOnlySpan<byte> name, int nameId)
+    {
+        var count = U16(name, 2); var storage = U16(name, 4);
+        string? chosen = null; var best = -1;
+        for (var i = 0; i < count; i++)
+        {
+            var at = 6 + i * 12;
+            if (U16(name, at + 6) != nameId) continue;
+            var platform = U16(name, at); var encoding = U16(name, at + 2); var language = U16(name, at + 4);
+            var length = U16(name, at + 8); var offset = storage + U16(name, at + 10);
+            var unicode = platform == 0 || platform == 3 && encoding is 0 or 1 or 10;
+            if (!unicode && !(platform == 1 && encoding == 0) || unicode && length % 2 != 0) continue;
+            var score = platform == 3 ? language == 0x409 ? 4 : 3 : platform == 0 ? 2 : 1;
+            if (score <= best) continue;
+            var text = (unicode ? Encoding.BigEndianUnicode.GetString(name.Slice(offset, length))
+                : Encoding.Latin1.GetString(name.Slice(offset, length))).Trim();
+            if (text.Length == 0) continue;
+            chosen = text; best = score;
+        }
         return chosen;
     }
 }

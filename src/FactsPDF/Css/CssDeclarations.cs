@@ -16,6 +16,8 @@ internal enum CssProperty
     ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
     BackgroundClip, TableLayout, Hyphens, ObjectFit, ObjectPosition, CounterReset, CounterIncrement, CounterSet,
     TabSize, LineBreak, Visibility, OverflowX, OverflowY, TextOverflow,
+    // The font matching inputs besides weight and style (inherited text properties, see FontRoles).
+    FontStretch, FontFamily,
     // The animation longhands the cascade carries (CssAnimations): lists of layers, applied as a
     // keyframe state rather than to a style, so they stay the last cascade slots.
     AnimationName, AnimationDuration, AnimationDelay, AnimationIterationCount, AnimationDirection,
@@ -101,6 +103,15 @@ internal static class CssDeclarations
             throw new FactsPdfException("FPDF1201", $"CSS property '{declaration.Name}' is only supported on paragraphs/headings.", declaration.Offset);
         if (declaration.Value is not ("inherit" or "initial" or "unset"))
         {
+            // A font-family list resolves against the conversion's fonts, which only the cascade
+            // (CssStylesheets.Compute) holds; page-margin boxes check theirs in CssPageRules.
+            if (property == CssProperty.FontFamily) return style;
+            // bolder and lighter (CSS Fonts 4 §2.2) are relative to the inherited weight.
+            if (property == CssProperty.FontWeight && declaration.Value is "bolder" or "lighter")
+            {
+                style.Weight = InlineCss.RelativeWeight(parent.Weight, declaration.Value == "bolder");
+                return style;
+            }
             if (property == CssProperty.FontSize)
             {
                 var keyword = InlineCss.KeywordFontSize(declaration.Value, parent.FontSize);
@@ -111,6 +122,9 @@ internal static class CssDeclarations
                         throw new FactsPdfException("FPDF1202",
                             "Computed keyword font-size must be between 1pt and 144pt.", declaration.Offset);
                     style.FontSize = computed;
+                    // smaller and larger scale the parent's size and keep its kind; the absolute
+                    // keywords (medium ...) are keyword sizes.
+                    style.FontSizeAbsolute = declaration.Value is "smaller" or "larger" && parent.FontSizeAbsolute;
                     return style;
                 }
                 var rem = InlineCss.RootRelativeScale(declaration.Value, declaration.Offset, 144);
@@ -121,6 +135,7 @@ internal static class CssDeclarations
                         throw new FactsPdfException("FPDF1202",
                             "Computed root-relative font-size must be between 1pt and 144pt.", declaration.Offset);
                     style.FontSize = computed;
+                    style.FontSizeAbsolute = parent.FontSizeAbsolute;
                     return style;
                 }
                 var relative = InlineCss.RelativeFontSizeScale(declaration.Value, declaration.Offset);
@@ -133,6 +148,7 @@ internal static class CssDeclarations
                         throw new FactsPdfException("FPDF1202",
                             "Computed relative font-size must be between 1pt and 144pt.", declaration.Offset);
                     style.FontSize = computed;
+                    style.FontSizeAbsolute = parent.FontSizeAbsolute;
                     return style;
                 }
             }
@@ -226,14 +242,16 @@ internal static class CssDeclarations
             }
             return InlineCss.Apply(style, declaration.Name, declaration.Value, paragraph, inline: false, declaration.Offset);
         }
-        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpaceCollapse or CssProperty.TextWrapMode or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TabSize or CssProperty.LineBreak or CssProperty.Visibility or CssProperty.Hyphens or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
+        var inherited = property is CssProperty.FontSize or CssProperty.FontWeight or CssProperty.FontStyle or CssProperty.FontStretch or CssProperty.FontFamily or CssProperty.Color or CssProperty.LineHeight or CssProperty.TextAlign or CssProperty.WhiteSpaceCollapse or CssProperty.TextWrapMode or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TabSize or CssProperty.LineBreak or CssProperty.Visibility or CssProperty.Hyphens or CssProperty.TextIndent or CssProperty.LetterSpacing or CssProperty.WordSpacing or CssProperty.TextTransform or CssProperty.TextUnderlineOffset or CssProperty.TextAlignLast or CssProperty.BorderCollapse
             or CssProperty.Orphans or CssProperty.Widows;
         var source = declaration.Value == "inherit" || declaration.Value == "unset" && inherited ? parent : initial;
         switch (property)
         {
-            case CssProperty.FontSize: style.FontSize = source.FontSize; break;
-            case CssProperty.FontWeight: style.Bold = source.Bold; break;
-            case CssProperty.FontStyle: style.Italic = source.Italic; break;
+            case CssProperty.FontSize: style.FontSize = source.FontSize; style.FontSizeAbsolute = source.FontSizeAbsolute; break;
+            case CssProperty.FontWeight: style.Weight = source.Weight; break;
+            case CssProperty.FontStyle: style.Slant = source.Slant; break;
+            case CssProperty.FontStretch: style.Stretch = source.Stretch; break;
+            case CssProperty.FontFamily: style.Families = source.Families; break;
             case CssProperty.Color: style.Color = source.Color; break;
             case CssProperty.LineHeight: style.LineHeight = source.LineHeight; style.AbsoluteLineHeight = source.AbsoluteLineHeight; break;
             case CssProperty.TextAlign: style.Alignment = source.Alignment; break;

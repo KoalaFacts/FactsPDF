@@ -14,6 +14,9 @@ namespace FactsPDF;
 /// </summary>
 internal sealed class CssPageRules
 {
+    /// <summary>The conversion's font-family resolver, to tell which margin-box families have fonts.</summary>
+    internal Func<FontFamilyResolver>? Fonts { get; init; }
+
     private const double Tolerance = 0.000001;
     private static readonly double Millimetre = 72d / 25.4d;
     private static readonly string[] BoxNames = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"];
@@ -313,6 +316,16 @@ internal sealed class CssPageRules
                     : declaration, paragraph: false, context.FontSize);
             if (!double.IsFinite(style.FontSize) || style.FontSize is < 1 or > 144)
                 throw new FactsPdfException("FPDF1202", "Page-margin font-size must be from 1 to 144 points.", content.Offset);
+            // Margin-box text is drawn from the default font chains only. A family that resolves to
+            // registered or @font-face fonts (its own, or the root element's it inherits) would
+            // print in that face in Chrome, so it fails rather than printing the default face.
+            var family = box.Styles.Where(d => d.Property == CssProperty.FontFamily).OrderBy(d => d.Important).ThenBy(d => d.Order).LastOrDefault();
+            var families = family is null || family.Value is "inherit" or "initial" or "unset" or "revert" or "revert-layer"
+                ? style.Families : Fonts?.Invoke().List(family.Value);
+            if (families is not null)
+                throw new FactsPdfException("FPDF1201",
+                    $"Page-margin box text uses only the default font chains, but its font-family resolves to {families.Names}; set font-family on the margin box to a family with no registered fonts, or use page furniture.",
+                    family?.Offset ?? content.Offset);
             texts[i] = new PdfPageText
             {
                 Template = template,

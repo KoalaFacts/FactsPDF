@@ -204,8 +204,8 @@ public sealed class FontStyleRoleTests
         Fails(html, options with { MaxOutputBytes = 100 }, "FPDF1401");
     }
 
-    [TestCase("font-weight:650")][TestCase("font-weight:bolder lighter")][TestCase("font-weight:400%")]
-    [TestCase("font-style:oblique")][TestCase("font-style:oblique 10deg")]
+    [TestCase("font-weight:1001")][TestCase("font-weight:bolder lighter")][TestCase("font-weight:400%")]
+    [TestCase("font-style:oblique -10deg")][TestCase("font-style:oblique 10deg 20deg")]
     [TestCase("font-style:bold")][TestCase("font-weight:light")]
     public void UnsupportedValuesAreRejectedEvenInUnmatchedRules(string css)
         => Fails($"<style>.absent{{{css}}}</style><p>A</p>", AllRoles(), "FPDF1202");
@@ -227,15 +227,24 @@ public sealed class FontStyleRoleTests
             Is.EqualTo(Pdf($"<p style='font-weight:{canonical}'>A</p>", options)));
     }
 
-    [TestCase("599.99999999999999")]
-    [TestCase("900.00000000000001")]
-    [TestCase("100.0000000000000000000000000000000000001")]
-    [TestCase("99.9999999999999999999999999999999999999")]
-    [TestCase("6.0000000000000000000000000000000000001e2")]
-    [TestCase("899999999999999999999999999999999999999e-36")]
+    // CSS Fonts 4 font-weight is any <number> from 1 to 1000; a long decimal is read as the
+    // nearest double, so these select the face their value rounds to.
+    [TestCase("599.99999999999999", true)]
+    [TestCase("500.00000000000001", false)]
+    [TestCase("100.0000000000000000000000000000000000001", false)]
+    [TestCase("99.9999999999999999999999999999999999999", false)]
+    [TestCase("6.0000000000000000000000000000000000001e2", true)]
+    [TestCase("899999999999999999999999999999999999999e-36", true)]
+    public void LongDecimalWeightsSelectTheRoleTheyRoundTo(string value, bool bold)
+    {
+        var options = AllRoles();
+        Assert.That(Layout($"<p style='font-weight:{value}'>A</p>", options)[0].Runs[0].Font,
+            Is.SameAs(bold ? options.BoldFonts[0] : options.Fonts[0]));
+    }
+
     [TestCase("6e2147483647")]
     [TestCase("6e-2147483648")]
-    public void InexactNumericWeightRejectsWithoutChangingOutput(string value)
+    public void OutOfRangeNumericWeightRejectsWithoutChangingOutput(string value)
     {
         Fails($"<p style='font-weight:{value}'>A</p>", AllRoles(), "FPDF1202");
         Fails($"<style>.unused{{font-weight:{value}}}</style><p>A</p>", AllRoles(), "FPDF1202");

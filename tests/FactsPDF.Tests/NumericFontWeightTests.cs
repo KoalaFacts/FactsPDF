@@ -117,12 +117,6 @@ public sealed class NumericFontWeightTests
     }
 
     [TestCase("0")]
-    [TestCase("50")]
-    [TestCase("450")]
-    [TestCase("550")]
-    [TestCase("650")]
-    [TestCase("950")]
-    [TestCase("1000")]
     [TestCase("500%")]
      [TestCase("700 400")]
     [TestCase("1e99")]

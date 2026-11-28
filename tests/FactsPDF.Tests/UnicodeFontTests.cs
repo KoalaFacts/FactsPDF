@@ -76,7 +76,7 @@ public sealed class UnicodeFontTests
     [TestCase(0)] [TestCase(8)] [TestCase(256)]
     public void AcceptsFullEmbeddingPermissions(int fsType)
         => Assert.That(Font(fsType: (ushort)fsType).GlyphFor(65), Is.EqualTo(2));
-    [TestCase("OTTO")] [TestCase("ttcf")] [TestCase("wOFF")] [TestCase("wOF2")]
+    [TestCase("OTTO")]
     public void RejectsUnsupportedFontContainers(string header)
     {
         var data = FontFixture.Create(); Encoding.ASCII.GetBytes(header).CopyTo(data, 0);

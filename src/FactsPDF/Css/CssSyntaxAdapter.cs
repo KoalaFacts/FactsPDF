@@ -223,6 +223,17 @@ internal static class CssSyntaxAdapter
                         fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start), node.Span.Start));
                     continue;
                 }
+                // The font matching properties (CSS Fonts 4): font-family keeps its list in the
+                // canonical form FontFamilyNames reads; font-style, font-stretch and font-weight keep
+                // one normalised value. Each is resolved against the conversion's fonts per element.
+                if (name is "font-family" or "font-style" or "font-stretch" or "font-weight")
+                {
+                    var (fontValue, fontOffset) = FontMatchingValue(name, node);
+                    if (fontValue == "revert-layer") budget.UsesRevertLayer = true;
+                    output.Add(CssDeclaration.Create(property, name, fontValue, node.Important,
+                        fixedOrder != 0 ? fixedOrder : budget.Declaration(fontOffset), fontOffset));
+                    continue;
+                }
                 // RGB and HSL functions are lowered to their equivalent hex colour
                 // (#rrggbb, or #rrggbbaa when translucent), so the cascade, box paint
                 // and PDF serializers share one colour path.
@@ -818,19 +829,6 @@ internal static class CssSyntaxAdapter
                     Emit(property, token, tokenOffset);
                     continue;
                 }
-                if (property == CssProperty.FontWeight)
-                {
-                    var syntax = valueTokens[0].Token;
-                    if (syntax.Kind == CssSyntaxTokenKind.Number
-                        && TryNumericFontWeight(syntax.Value, out var weight))
-                        token = weight.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
-                    else if (syntax.Kind != CssSyntaxTokenKind.Ident || !(Wide(token) || token is "normal" or "bold" or "bolder" or "lighter"))
-                        throw new FactsPdfException("FPDF1202",
-                            "font-weight requires normal/bold/bolder/lighter or numeric hundreds from 100 through 900.", tokenOffset);
-                }
-                if (property == CssProperty.FontStyle && (valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident
-                    || !(Wide(token) || token is "normal" or "italic")))
-                    throw new FactsPdfException("FPDF1202", "font-style requires normal or italic.", tokenOffset);
                 if ((property is CssProperty.ListStyleType or CssProperty.ListStylePosition) && valueTokens[0].Token.Kind != CssSyntaxTokenKind.Ident)
                     throw new FactsPdfException("FPDF1202", "list-style-type requires a supported identifier.", tokenOffset);
                 // orphans/widows take a CSS <integer>: 3.0, 3e0 and 3px are numbers or dimensions.
@@ -863,11 +861,13 @@ internal static class CssSyntaxAdapter
     // The font shorthand (CSS Fonts 4) sets font-style, font-variant, font-weight, font-stretch, font-size,
     // line-height and font-family together, and resets the ones it does not mention to their initial
     // values. Each longhand is compiled by CompileKnownDeclarations as a declaration of its own at the
-    // shorthand's position, so a value the renderer cannot draw (small-caps, a stretch keyword, oblique,
-    // a numeric weight that is not a hundred) fails or is dropped exactly as that longhand does. The
-    // longhands the renderer keeps no state for (font-variant, font-stretch, font-family and the
-    // font-variant-*, font-size-adjust, font-kerning ... resets) are validated and dropped, so their
-    // reset has nothing to override. A system font keyword needs a platform font and fails.
+    // shorthand's position, so a value the renderer cannot draw (small-caps, a negative oblique angle)
+    // fails or is dropped exactly as that longhand does. The longhands the renderer keeps no state for
+    // (font-variant and the font-variant-*, font-size-adjust, font-kerning ... resets) are validated
+    // and dropped, so their reset has nothing to override. A system font keyword (caption, menu, ...)
+    // names the platform's UI font, which the renderer never discovers, and fails.
+    private static readonly string[] ShorthandLonghands = ["font-style", "font-weight", "font-stretch", "font-size", "line-height", "font-family"];
+
     private static void CompileFont(CssDeclarationNode node, CssBudget budget, CssSelector[]? hostSelectors,
         string? hostElement, int fixedOrder, List<CssDeclaration> output)
     {
@@ -888,14 +888,14 @@ internal static class CssSyntaxAdapter
         if (split.Form == CssFontShorthand.Form.CssWide)
         {
             var keyword = CssFontShorthand.Slice(node.Values, new(0, node.Values.Count));
-            foreach (var name in new[] { "font-style", "font-weight", "font-size", "line-height" }) Add(name, keyword);
+            foreach (var name in ShorthandLonghands) Add(name, keyword);
         }
         else
         {
             Add("font-style", split.Style.Present ? CssFontShorthand.Slice(node.Values, split.Style) : Normal());
             if (split.Variant.Present) Add("font-variant", CssFontShorthand.Slice(node.Values, split.Variant));
             Add("font-weight", split.Weight.Present ? CssFontShorthand.Slice(node.Values, split.Weight) : Normal());
-            if (split.Stretch.Present) Add("font-stretch", CssFontShorthand.Slice(node.Values, split.Stretch));
+            Add("font-stretch", split.Stretch.Present ? CssFontShorthand.Slice(node.Values, split.Stretch) : Normal());
             Add("font-size", CssFontShorthand.Slice(node.Values, split.Size));
             Add("line-height", split.LineHeight.Present ? CssFontShorthand.Slice(node.Values, split.LineHeight) : Normal());
             Add("font-family", CssFontShorthand.Slice(node.Values, split.Family));
@@ -960,40 +960,67 @@ internal static class CssSyntaxAdapter
     private const int MaxPooledDeclarations = 1024;
     [ThreadStatic] private static List<CssDeclaration>? pooledDeclarations;
 
-    // A supported weight is exactly one nonzero decimal digit times 10^2.
-    // Inspect every mantissa digit: floating-point parsing can round an
-    // unsupported fraction (or a value above 900) into a supported weight.
-    private static bool TryNumericFontWeight(string value, out int weight)
+    // The normalised value of a font matching longhand and the offset its declaration is reported
+    // at (the first value token). font-family: the canonical list (FontFamilyNames). font-style:
+    // normal, italic or oblique (oblique 0deg is upright; negative angles are unsupported).
+    // font-stretch: a percentage ("75%"). font-weight: normal, bold, bolder, lighter or a number
+    // from 1 to 1000. CSS-wide keywords pass through.
+    private static (string Value, int Offset) FontMatchingValue(string name, CssDeclarationNode node)
     {
-        weight = 0;
-        var number = value.AsSpan();
-        if (number.Length > 0 && number[0] == '+') number = number[1..];
-        if (number.Length == 0 || number[0] == '-') return false;
-        var exponentIndex = number.IndexOfAny('e', 'E');
-        var exponent = 0;
-        if (exponentIndex >= 0)
+        var values = new List<CssSyntaxComponent>(node.Values.Count);
+        foreach (var component in node.Values)
+            if (component is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) values.Add(component);
+        if (values.Count == 0) throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
+        var offset = values[0].Span.Start;
+        var first = values[0] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word } ? word.Value.ToLowerInvariant() : null;
+        if (values.Count == 1 && first is not null && Wide(first)) return (first, offset);
+        switch (name)
         {
-            if (!int.TryParse(number[(exponentIndex + 1)..],
-                System.Globalization.NumberStyles.AllowLeadingSign,
-                System.Globalization.CultureInfo.InvariantCulture, out exponent)) return false;
-            number = number[..exponentIndex];
+            case "font-family":
+                if (!FamilyList(node))
+                    throw new FactsPdfException("FPDF1202",
+                        "font-family supports only a comma-separated list of family names (strings or identifiers) and generic families.", offset);
+                var entries = new List<(string Name, bool Quoted)>();
+                var words = new List<string>();
+                foreach (var component in values)
+                {
+                    var token = ((CssTokenComponent)component).Token;
+                    if (token.Kind == CssSyntaxTokenKind.String) entries.Add((FontFamilyNames.Fold(token.Value), true));
+                    else if (token.Kind == CssSyntaxTokenKind.Ident) words.Add(FontFamilyNames.Fold(token.Value));
+                    else if (token.Kind == CssSyntaxTokenKind.Comma && words.Count > 0) { entries.Add((string.Join(' ', words), false)); words.Clear(); }
+                }
+                if (words.Count > 0) entries.Add((string.Join(' ', words), false));
+                return (FontFamilyNames.Format(entries), offset);
+            case "font-style":
+                if (values.Count == 1 && first is "normal" or "italic") return (first, offset);
+                if (first == "oblique" && values.Count <= 2)
+                {
+                    if (values.Count == 1) return ("oblique", offset);
+                    var angle = CssFontFace.Angle(values[1]);
+                    if (angle is >= -90 and <= 90)
+                    {
+                        if (angle < 0)
+                            throw new FactsPdfException("FPDF1202", "font-style: oblique with a negative angle (a backslant) is not supported.", values[1].Span.Start);
+                        return (angle > 0 ? "oblique" : "normal", offset);
+                    }
+                }
+                throw new FactsPdfException("FPDF1202", "font-style requires normal, italic or oblique with an optional angle from 0deg to 90deg.", offset);
+            case "font-stretch":
+                if (values.Count == 1 && first is not null && CssFontFace.StretchKeyword(first) is { } keyword)
+                    return (keyword.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%", offset);
+                if (values.Count == 1 && values[0] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Percentage } percent }
+                    && double.TryParse(percent.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var stretch)
+                    && stretch is >= 0 and <= 1000)
+                    return (stretch.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "%", offset);
+                throw new FactsPdfException("FPDF1202", "font-stretch requires a keyword (ultra-condensed to ultra-expanded) or a non-negative percentage.", offset);
+            default: // font-weight
+                if (values.Count == 1 && first is "normal" or "bold" or "bolder" or "lighter") return (first, offset);
+                if (values.Count == 1 && values[0] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Number } number }
+                    && double.TryParse(number.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var weight)
+                    && weight is >= 1 and <= 1000)
+                    return (weight.ToString("R", System.Globalization.CultureInfo.InvariantCulture), offset);
+                throw new FactsPdfException("FPDF1202", "font-weight requires normal, bold, bolder, lighter or a number from 1 to 1000.", offset);
         }
-        var decimalIndex = number.IndexOf('.');
-        var integerDigits = decimalIndex < 0 ? number.Length : decimalIndex;
-        var digitIndex = 0;
-        var significantIndex = -1;
-        foreach (var digit in number)
-        {
-            if (digit == '.') continue;
-            if (digit != '0')
-            {
-                if (digit is < '1' or > '9' || significantIndex >= 0) return false;
-                significantIndex = digitIndex;
-                weight = (digit - '0') * 100;
-            }
-            digitIndex++;
-        }
-        return significantIndex >= 0 && (long)exponent + integerDigits - significantIndex - 1 == 2;
     }
 
     // revert and revert-layer (no cascade layers exist, so it reverts like revert) roll back the
@@ -1017,10 +1044,10 @@ internal static class CssSyntaxAdapter
         "isolation" => "auto",
         // Font tuning resets (Tailwind preflight writes font-feature-settings and
         // font-variation-settings as normal on html): the renderer applies no OpenType
-        // features, variation axes, optical sizing, aspect adjustment or width selection
-        // beyond the font as given, which is exactly what these initial values ask for.
+        // features, variation axes, optical sizing or aspect adjustment beyond the font as
+        // given, which is exactly what these initial values ask for.
         "font-feature-settings" or "font-variation-settings" or "font-variant-ligatures"
-            or "font-variant-numeric" or "font-stretch" => "normal",
+            or "font-variant-numeric" => "normal",
         // The remaining font-variant longhands and the font-variant shorthand at normal
         // (email and print templates reset them) ask for no small caps, East Asian forms,
         // alternates or sub/superscript glyphs, which the renderer never substitutes.
@@ -1222,7 +1249,7 @@ internal static class CssSyntaxAdapter
     // model are never anything but their initial value, which is what all would give them.
     private static readonly string[] AllProperties =
     [
-        "font-size", "font-weight", "font-style", "color", "line-height", "text-align", "text-align-last",
+        "font-size", "font-weight", "font-style", "font-stretch", "font-family", "color", "line-height", "text-align", "text-align-last",
         "border-collapse", "orphans", "widows", "white-space", "overflow-wrap", "word-break", "text-indent",
         "letter-spacing", "word-spacing", "text-transform", "hyphens", "display", "content", "flex-direction",
         "flex-wrap", "justify-content", "align-items", "align-self", "flex-grow", "flex-shrink", "flex-basis",
@@ -1325,10 +1352,6 @@ internal static class CssSyntaxAdapter
             // Quotation marks are only inserted by q elements and open-quote/close-quote content,
             // and neither is accepted, so no quote is ever drawn (see the keyword arm and pairs).
             or "quotes"
-            // Fonts are never discovered: the supplied font chain (or the standard Courier
-            // fallback) is the only installed font, so every family list resolves to it, as a
-            // browser falls back when none of the named families is installed (see FamilyList).
-            or "font-family"
         // Cell spacing at its initial value: separated cell boxes already touch (zero spacing),
         // so one or two zero lengths are validated and dropped; any other spacing fails.
         || name == "border-spacing"
@@ -1451,7 +1474,6 @@ internal static class CssSyntaxAdapter
         // will-change is a compositor hint: auto, or a comma list of animateable features
         // (transform, opacity, scroll-position, contents, ...). A static page never changes.
         if (name == "will-change" && WillChangeList(node)) return;
-        if (name == "font-family" && FamilyList(node)) return;
         // transform-origin only moves the point a transform pivots around; the only accepted
         // transform is none, so no box is ever moved and a well-formed origin changes nothing.
         if (name == "transform-origin" && TransformOrigin(node)) return;
@@ -2029,6 +2051,7 @@ internal static class CssSyntaxAdapter
     {
         "font-size" => CssProperty.FontSize, "color" => CssProperty.Color,
         "font-weight" => CssProperty.FontWeight, "font-style" => CssProperty.FontStyle,
+        "font-stretch" => CssProperty.FontStretch, "font-family" => CssProperty.FontFamily,
         "line-height" => CssProperty.LineHeight, "text-align" => CssProperty.TextAlign,
         "text-align-last" => CssProperty.TextAlignLast,
         "border-collapse" => CssProperty.BorderCollapse,

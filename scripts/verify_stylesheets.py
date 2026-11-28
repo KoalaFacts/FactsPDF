@@ -993,8 +993,8 @@ def main():
                 raise AssertionError('Numeric weights report lost searchable content: ' + marker)
         bad, destination = temp / 'bad.html', temp / 'protected.pdf'
         for html, code, font_role in (
-            ("<p style='font-weight:650'>Invalid</p>", b'FPDF1202', True),
-            ("<style>.unused{font-weight:550}</style><p>Invalid</p>", b'FPDF1202', True),
+            ("<p style='font-weight:1001'>Invalid</p>", b'FPDF1202', True),
+            ("<style>.unused{font-weight:0}</style><p>Invalid</p>", b'FPDF1202', True),
             ("<p style='font-weight:bolder lighter'>Invalid</p>", b'FPDF1202', True),
             ("<p style='font-weight:600'>Missing bold chain</p>", b'FPDF1507', False)
         ):
@@ -1045,7 +1045,7 @@ def main():
         for html, code, with_bold in (
             ("<p style='font-weight:bolder'>Cannot fallback</p>", b'FPDF1507', False),
             ("<style>.unused{font-weight:semi-bold}</style><p>Invalid</p>", b'FPDF1202', True),
-            ("<p style='font-weight:650'>Invalid</p>", b'FPDF1202', True)
+            ("<p style='font-weight:1001'>Invalid</p>", b'FPDF1202', True)
         ):
             bad.write_text(html, encoding='utf-8')
             protected.write_bytes(b'existing-report')

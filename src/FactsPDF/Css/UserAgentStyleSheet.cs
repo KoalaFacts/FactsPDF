@@ -24,6 +24,7 @@ internal static class UserAgentStyleSheet
         body{margin:8px}
         p,pre,dl{margin-top:1em;margin-bottom:1em}
         pre{white-space:pre}
+        pre,code,kbd,samp{font-family:monospace}
         h1{font-size:2em;font-weight:bold;margin-top:.67em;margin-bottom:.67em}
         h2{font-size:1.5em;font-weight:bold;margin-top:.83em;margin-bottom:.83em}
         h3{font-size:1.17em;font-weight:bold;margin-top:1em;margin-bottom:1em}

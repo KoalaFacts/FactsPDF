@@ -124,7 +124,7 @@ internal static class HtmlDocumentReader
         var outer = true;
         for (var i = stack.Count - 2; i >= 0; i--)
             if (stack[i].Name == "q") { outer = false; break; }
-        if (options.Fonts.Count == 0 && FontRoles.Role(stack[^1].Style) == FontRole.Normal)
+        if (FontRoles.UsesBuiltInFont(options, stack[^1].Style))
             return outer ? "\"" : "'";
         return outer ? open ? "\u201C" : "\u201D" : open ? "\u2018" : "\u2019";
     }

@@ -59,12 +59,18 @@ internal sealed record PdfOptions
     public int MaxOutputBytes { get; init; } = 16_777_216;
     /// <summary>Ordered explicit font fallback chain. Empty retains ASCII/Courier.</summary>
     public IReadOnlyList<PdfFont> Fonts { get; init; } = Array.Empty<PdfFont>();
-    /// <summary>Ordered explicit fallback for bold text. No synthetic weight or cross-style fallback.</summary>
+    /// <summary>Ordered explicit fallback for bold text (font-weight above 500). No synthetic weight or cross-style fallback.</summary>
     public IReadOnlyList<PdfFont> BoldFonts { get; init; } = Array.Empty<PdfFont>();
-    /// <summary>Ordered explicit fallback for italic text. No synthetic slant or cross-style fallback.</summary>
+    /// <summary>Ordered explicit fallback for italic and oblique text. No synthetic slant or cross-style fallback.</summary>
     public IReadOnlyList<PdfFont> ItalicFonts { get; init; } = Array.Empty<PdfFont>();
     /// <summary>Ordered explicit fallback for text that is both bold and italic.</summary>
     public IReadOnlyList<PdfFont> BoldItalicFonts { get; init; } = Array.Empty<PdfFont>();
+    /// <summary>Caller-registered font faces CSS font-family selects by family name (CSS Fonts 4 font matching).</summary>
+    internal IReadOnlyList<RegisteredFontFace> FontFaces { get; init; } = Array.Empty<RegisteredFontFace>();
+    /// <summary>Generic family keywords (serif, sans-serif, monospace, ...) mapped to registered family names (ASCII lower case).</summary>
+    internal IReadOnlyDictionary<string, string> GenericFamilies { get; init; } = FontResourceDefaults.NoGenerics;
+    /// <summary>Fonts an <c>@font-face</c> src url() names, by the exact URL text; nothing is fetched.</summary>
+    internal IReadOnlyDictionary<string, PdfFont> FontResources { get; init; } = FontResourceDefaults.Empty;
     /// <summary>Maximum combined size in bytes of all distinct supplied fonts (FPDF1503).</summary>
     public int MaxTotalFontBytes { get; init; } = 67_108_864;
     /// <summary>Explicit ordinal resource names used by standalone and image-only table-cell img elements; no implicit file or network resolution.</summary>

@@ -48,7 +48,7 @@ export const styleErrorCases = [
   { name: 'styles-missing-both', html: '<p><b><i>A</i></b></p>', roles: ['bold', 'italic'], code: 'FPDF1507' },
   { name: 'styles-missing-glyph', html: '<p><i>中</i></p>', roles: ['normal', 'italic'], latinOnly: true, code: 'FPDF1504' },
   { name: 'styles-no-normal', html: '<p>中</p>', roles: ['italic'], code: 'FPDF1301' },
-  { name: 'styles-unsupported', html: '<style>.absent{font-style:oblique}</style><p>A</p>', roles: [], code: 'FPDF1202' },
+  { name: 'styles-unsupported', html: '<style>.absent{font-style:oblique -10deg}</style><p>A</p>', roles: [], code: 'FPDF1202' },
 ];
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
   console.log(JSON.stringify({ cases: styleCases, errors: styleErrorCases }));
