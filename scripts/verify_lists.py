@@ -155,7 +155,7 @@ def inspect_marker_styles(root, out, args, flags):
     for mode, command in [('cli', [args.dotnet, args.cli_dll]), ('native', [args.native_cli])]:
         for name, html, code in [
             ('invalid-type', '<ol style="list-style-type:diamond"><li>A</li></ol>', 'FPDF1202'),
-            ('invalid-target', '<p style="list-style-type:decimal">A</p>', 'FPDF1201'),
+            ('invalid-target', '<table><tr><td style="list-style-type:decimal">A</td></tr></table>', 'FPDF1201'),
         ]:
             input_path = out / f'list-marker-{mode}-{name}.html'
             target = out / f'list-marker-{mode}-{name}.pdf'
