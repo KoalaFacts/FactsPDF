@@ -15,6 +15,10 @@ internal enum CssProperty
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
     ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
     TabSize, LineBreak, Visibility, OverflowX, OverflowY, TextOverflow, Hyphens,
+    // The animation longhands the cascade carries (CssAnimations): lists of layers, applied as a
+    // keyframe state rather than to a style, so they stay the last cascade slots.
+    AnimationName, AnimationDuration, AnimationDelay, AnimationIterationCount, AnimationDirection,
+    AnimationFillMode, AnimationTimingFunction,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.
@@ -245,7 +249,7 @@ internal static class CssDeclarations
             case CssProperty.TextWrapMode: style.NoWrap = source.NoWrap; break;
             case CssProperty.OverflowWrap: style.BreakWords = source.BreakWords; style.BreakAnywhere = source.BreakAnywhere; break;
             case CssProperty.WordBreak: style.BreakAll = source.BreakAll; style.KeepAll = source.KeepAll; style.BreakWordsByWordBreak = source.BreakWordsByWordBreak; break;
-            case CssProperty.TabSize: style.TabSize = source.TabSize; style.TabSizeIsLength = source.TabSizeIsLength; break;
+            case CssProperty.TabSize: style.TabSize = source.TabSize; break;
             case CssProperty.LineBreak: style.LineBreak = source.LineBreak; break;
             case CssProperty.Visibility: style.Visibility = source.Visibility; break;
             case CssProperty.Hyphens: style.NoHyphens = source.NoHyphens; break;

@@ -93,7 +93,7 @@ public sealed class FontRelativeBorderWidthTests
 
     [TestCase("border-width:-1em", "FPDF1202")]
     [TestCase("border:2000rem solid red", "FPDF1202")]
-    [TestCase("border-width:calc(1em + 1pt)", "FPDF1202")]
+    [TestCase("border-width:env(x)", "FPDF1202")]
     [TestCase("border-left-width:10%", "FPDF1202")]
     [TestCase("outline:1em solid blue", "FPDF1202")]
     public void InvalidRelativeWidthsKeepExistingOutputAndStreamPosition(string css, string code)

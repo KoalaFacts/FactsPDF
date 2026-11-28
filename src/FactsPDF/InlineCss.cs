@@ -197,13 +197,15 @@ internal static class InlineCss
             case "tab-size":
                 // A non-negative number of space advances, or a non-negative length.
                 if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tabs)
-                    && double.IsFinite(tabs) && tabs >= 0 && tabs <= 1000)
-                    (style.TabSize, style.TabSizeIsLength) = (tabs, false);
+                    && double.IsFinite(tabs) && tabs >= 0 && tabs <= 1000 && !value.StartsWith('+'))
+                    style.TabSize = (float)tabs;
                 else
                 {
-                    var tabLength = Length(value, offset);
-                    if (!double.IsFinite(tabLength) || tabLength < 0 || tabLength > 14_400) throw Invalid("tab-size is out of range.", offset);
-                    (style.TabSize, style.TabSizeIsLength) = (tabLength, true);
+                    double tabLength;
+                    try { tabLength = Length(value, offset); }
+                    catch (FactsPdfException) { throw Invalid("tab-size supports only a non-negative number or length.", offset); }
+                    if (!double.IsFinite(tabLength) || tabLength < 0 || tabLength > 14_400) throw Invalid("tab-size supports only a non-negative number or length.", offset);
+                    style.TabSize = -(float)tabLength; // a length is stored negated (a zero length is the number zero, which is the same)
                 }
                 break;
             case "hyphens":

@@ -34,7 +34,6 @@ internal sealed class LineBreakAnalyzer
 {
     internal const byte No = 0, Allowed = 1, Mandatory = 2;
 
-    private byte[] raw = [];
     private byte[] unitClass = [];
     private int[] unitScalar = [];
     private int[] unitStart = [];
@@ -43,6 +42,9 @@ internal sealed class LineBreakAnalyzer
     private byte[] unitNumber = [];
     private byte[] breaks = [];
 
+    private int charCount, decided, lastNonSpaceUnit, regionalIndicatorRun;
+    private bool finished;
+
     /// <summary>The break opportunity before each scalar; the result is valid until the next call.</summary>
     /// <param name="text">The scalars, or a negative value for an atomic inline.</param>
     /// <param name="strictNonStarters">Resolve CJ (small kana and the like) as NS (line-break:strict) instead of ID.</param>
@@ -50,24 +52,52 @@ internal sealed class LineBreakAnalyzer
         => Analyze(text, strictNonStarters ? LineBreakStrictness.Strict : LineBreakStrictness.Normal, WordBreakMode.Normal);
 
     /// <summary>The break opportunity before each scalar under the given line-break and word-break values.</summary>
-    internal ReadOnlySpan<byte> Analyze(ReadOnlySpan<int> text, LineBreakStrictness strictness, WordBreakMode wordBreak)
+    internal ReadOnlySpan<byte> Analyze(ReadOnlySpan<int> text, LineBreakStrictness strictness, WordBreakMode wordBreak,
+        CancellationToken cancellation = default)
+    {
+        Reset(strictness, wordBreak);
+        Append(text, final: true, cancellation);
+        return Breaks;
+    }
+
+    /// <summary>Starts a new text.</summary>
+    internal void Reset(LineBreakStrictness strictness, WordBreakMode wordBreak)
     {
         this.wordBreak = wordBreak;
         this.strictness = strictness;
-        var n = text.Length;
-        if (breaks.Length < n)
+        charCount = unitCount = 0;
+        decided = 1; lastNonSpaceUnit = -1; regionalIndicatorRun = 0; finished = false;
+    }
+
+    /// <summary>The opportunity before each appended scalar; only the first <see cref="FinalCount"/> are decided.</summary>
+    internal ReadOnlySpan<byte> Breaks => breaks.AsSpan(0, charCount);
+
+    /// <summary>How many leading scalars have their break decision final: those before the first unit that still lacks lookahead.</summary>
+    internal int FinalCount => finished || decided >= unitCount ? charCount : unitStart[decided];
+
+    /// <summary>
+    /// Appends scalars and decides every boundary that now has the units it reads ahead (two); with
+    /// <paramref name="final"/> the text ends here and the rest is decided. Work is proportional to the appended
+    /// scalars, not to the text so far.
+    /// </summary>
+    internal void Append(ReadOnlySpan<int> text, bool final, CancellationToken cancellation = default)
+    {
+        var need = charCount + text.Length;
+        if (breaks.Length < need)
         {
-            var size = Math.Max(n, breaks.Length * 2);
-            raw = new byte[size]; unitClass = new byte[size]; unitScalar = new int[size]; unitStart = new int[size];
-            unitEndsWithJoiner = new bool[size]; unitIsComplexScript = new bool[size]; unitNumber = new byte[size]; breaks = new byte[size];
+            var size = Math.Max(need, breaks.Length * 2);
+            Array.Resize(ref unitClass, size); Array.Resize(ref unitScalar, size); Array.Resize(ref unitStart, size);
+            Array.Resize(ref unitEndsWithJoiner, size); Array.Resize(ref unitIsComplexScript, size);
+            Array.Resize(ref unitNumber, size); Array.Resize(ref breaks, size);
         }
-        Array.Clear(breaks, 0, n);
-        var units = 0;
-        for (var i = 0; i < n; i++)
+        for (var i = 0; i < text.Length; i++)
         {
+            if ((i & 1023) == 0) cancellation.ThrowIfCancellationRequested();
             var scalar = text[i];
+            var at = charCount++;
+            breaks[at] = No;
             var cls = scalar < 0 ? LineBreakClass.CB : Resolve(scalar, strictness, wordBreak);
-            raw[i] = (byte)cls;
+            var units = unitCount;
             if (cls is LineBreakClass.CM or LineBreakClass.ZWJ)
             {
                 // LB9: a combining mark or ZWJ joins the unit before it, unless that is a break, a space or ZW;
@@ -86,29 +116,49 @@ internal sealed class LineBreakAnalyzer
                 unitClass[units] = (byte)cls;
                 unitEndsWithJoiner[units] = false;
             }
-            unitScalar[units] = scalar; unitStart[units] = i;
+            unitScalar[units] = scalar; unitStart[units] = at;
             unitIsComplexScript[units] = scalar >= 0 && ClassOf(scalar) == LineBreakClass.SA;
-            units++;
-        }
-        for (var k = 0; k < units; k++)
-        {
             // 1: a number NU (SY | IS)*, 2: such a number closed by CL or CP (the prefixes of LB25).
-            var c = (LineBreakClass)unitClass[k];
-            var inNumber = k > 0 && unitNumber[k - 1] == 1;
-            unitNumber[k] = (byte)(c == LineBreakClass.NU ? 1
-                : c is LineBreakClass.SY or LineBreakClass.IS && inNumber ? 1
-                : c is LineBreakClass.CL or LineBreakClass.CP && inNumber ? 2 : 0);
+            var inNumber = units > 0 && unitNumber[units - 1] == 1;
+            unitNumber[units] = (byte)(cls == LineBreakClass.NU ? 1
+                : (LineBreakClass)unitClass[units] is LineBreakClass.SY or LineBreakClass.IS && inNumber ? 1
+                : (LineBreakClass)unitClass[units] is LineBreakClass.CL or LineBreakClass.CP && inNumber ? 2 : 0);
+            unitCount = units + 1;
         }
-        unitCount = units;
-        var lastNonSpace = -1;
-        var regionalIndicators = 0;
-        for (var k = 1; k < units; k++)
+        finished = final;
+        var limit = final ? unitCount : unitCount - 2;
+        var work = 0;
+        for (; decided < limit; decided++)
         {
-            if ((LineBreakClass)unitClass[k - 1] != LineBreakClass.SP) lastNonSpace = k - 1;
-            regionalIndicators = (LineBreakClass)unitClass[k - 1] == LineBreakClass.RI ? regionalIndicators + 1 : 0;
-            breaks[unitStart[k]] = Decide(k, lastNonSpace, regionalIndicators);
+            if ((++work & 1023) == 0) cancellation.ThrowIfCancellationRequested();
+            var k = decided;
+            if ((LineBreakClass)unitClass[k - 1] != LineBreakClass.SP) lastNonSpaceUnit = k - 1;
+            regionalIndicatorRun = (LineBreakClass)unitClass[k - 1] == LineBreakClass.RI ? regionalIndicatorRun + 1 : 0;
+            breaks[unitStart[k]] = Decide(k, lastNonSpaceUnit, regionalIndicatorRun);
         }
-        return breaks.AsSpan(0, n);
+    }
+
+    /// <summary>
+    /// Forgets the first scalars, up to <paramref name="count"/> and ending at a unit boundary, and returns how many
+    /// went. The rules that read behind keep what they need only while a few units stay, so callers keep some.
+    /// </summary>
+    internal int Discard(int count)
+    {
+        var drop = 0;
+        while (drop + 1 < decided && unitStart[drop + 1] <= count) drop++;
+        if (drop == 0) return 0;
+        var chars = unitStart[drop];
+        Array.Copy(unitClass, drop, unitClass, 0, unitCount - drop);
+        Array.Copy(unitScalar, drop, unitScalar, 0, unitCount - drop);
+        Array.Copy(unitEndsWithJoiner, drop, unitEndsWithJoiner, 0, unitCount - drop);
+        Array.Copy(unitIsComplexScript, drop, unitIsComplexScript, 0, unitCount - drop);
+        Array.Copy(unitNumber, drop, unitNumber, 0, unitCount - drop);
+        Array.Copy(unitStart, drop, unitStart, 0, unitCount - drop);
+        for (var i = 0; i < unitCount - drop; i++) unitStart[i] -= chars;
+        Array.Copy(breaks, chars, breaks, 0, charCount - chars);
+        unitCount -= drop; decided -= drop; charCount -= chars;
+        lastNonSpaceUnit = lastNonSpaceUnit >= drop ? lastNonSpaceUnit - drop : -1;
+        return chars;
     }
 
     // Sentinels outside the real classes; only the rules that name sot and eot compare with them.

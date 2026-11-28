@@ -119,7 +119,7 @@ public sealed class TextIndentTests
 
     [TestCase("text-indent:-1pt", "FPDF1202")]
     [TestCase("text-indent:-2em", "FPDF1202")]
-    [TestCase("text-indent:calc(1pt + 2pt)", "FPDF1202")]
+    [TestCase("text-indent:env(x)", "FPDF1202")]
     [TestCase("text-indent:2pt 3pt", "FPDF1202")]
     public void UnsafeInputsAreNotIgnoredAndLeaveExistingPdfUntouched(string declaration, string code)
         => Rejected("<p style='" + declaration + "'>SHORT</p>", code,

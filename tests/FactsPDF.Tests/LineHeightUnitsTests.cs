@@ -122,8 +122,8 @@ public sealed class LineHeightUnitsTests
     [TestCase("-2mm")]
     [TestCase("999999pt")]
     [TestCase("0rem")]
-    [TestCase("2vh")]
-    [TestCase("calc(1em + 2pt)")]
+    [TestCase("2ex")]
+    [TestCase("env(x)")]
     public void UnsupportedOrUnboundedLeadingCannotChangeExistingOutput(string value)
         => Reject("<p style='line-height:" + value + "'>Protected</p>");
 

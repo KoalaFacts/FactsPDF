@@ -81,7 +81,7 @@ public sealed class TableCellTextIndentTests
     }
 
     [TestCase("text-indent:-2pt", "FPDF1202")]
-    [TestCase("text-indent:calc(2pt + 1pt)", "FPDF1202")]
+    [TestCase("text-indent:env(x)", "FPDF1202")]
     public void UnsupportedOrImpossibleCellIndentsProtectDestination(string declaration, string code)
         => Reject(Cell(declaration), code);
 

@@ -371,7 +371,7 @@ internal static class TextLayout
                     if (inner.Parent == 0 && inner.RunStart >= runStart && inner.DiscStart >= discStart && inner.ImageStart >= imageStart
                         && (inner.RunEnd > inner.RunStart || inner.DiscEnd > inner.DiscStart || inner.ImageEnd > inner.ImageStart))
                         inner.Parent = id;
-                page.Clips.Add(region);
+                page.WritableClips.Add(region);
                 for (var b = boxStart; b < page.PaintBoxes.Count; b++)
                     if (page.PaintBoxes[b].Clip == 0) page.PaintBoxes[b] = page.PaintBoxes[b] with { Clip = id };
                 // An axis that computes to auto draws a scrollbar once its content overflows.

@@ -80,4 +80,55 @@ public sealed class LineBreakerTests
         }
         Assert.That(failures.Take(15), Is.Empty, failures.Count + " conformance failures");
     }
+
+    private static double Seconds(int glyphs, string spacer)
+    {
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var paragraph = new Paragraph(style);
+        paragraph.Runs.Add(new TextRun(new string('A', glyphs) + spacer, style));
+        var page = new PdfOptions { PageWidth = 300, PageHeight = 400, Margin = 20 };
+        TextLayout.Layout([paragraph], page, default);
+        var best = double.MaxValue;
+        for (var i = 0; i < 3; i++)
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            TextLayout.Layout([paragraph], page, default);
+            best = Math.Min(best, clock.Elapsed.TotalSeconds);
+        }
+        return best;
+    }
+
+    [Test]
+    public void ALongRunWithNoBreakOpportunityIsAnalysedInLinearTime()
+    {
+        // One unbreakable segment: re-analysing the retained window on every chunk would make 200k glyphs take 100 times
+        // as long as 20k; linear work takes about 10 times as long.
+        var small = Seconds(20_000, "");
+        var large = Seconds(200_000, "");
+        Assert.That(large / Math.Max(small, 0.0005), Is.LessThan(40), $"20k: {small:F4}s, 200k: {large:F4}s");
+    }
+
+    [Test]
+    public void IncrementalAnalysisEqualsAnalysingTheWholeText()
+    {
+        var text = "ab-cd 12.5 (x) 日本語、字。 \"q\" a/b?c".EnumerateRunes().Select(rune => rune.Value).ToArray();
+        var whole = new LineBreakAnalyzer().Analyze(text, LineBreakStrictness.Normal, WordBreakMode.Normal).ToArray();
+        var pieces = new LineBreakAnalyzer();
+        pieces.Reset(LineBreakStrictness.Normal, WordBreakMode.Normal);
+        for (var i = 0; i < text.Length; i += 3) pieces.Append(text.AsSpan(i, Math.Min(3, text.Length - i)), final: i + 3 >= text.Length);
+        Assert.That(pieces.Breaks.ToArray(), Is.EqualTo(whole));
+    }
+
+    [Test]
+    public void AnalysisHonoursCancellation()
+    {
+        using var source = new CancellationTokenSource();
+        source.Cancel();
+        var text = Enumerable.Repeat((int)'A', 5_000).ToArray();
+        Assert.Throws<OperationCanceledException>(() => new LineBreakAnalyzer().Analyze(text, LineBreakStrictness.Normal, WordBreakMode.Normal, source.Token));
+        var style = new TextStyle(12, 1.2, new Rgb(0, 0, 0), TextAlignment.Left);
+        var paragraph = new Paragraph(style);
+        paragraph.Runs.Add(new TextRun(new string('A', 50_000), style));
+        Assert.Throws<OperationCanceledException>(() => TextLayout.Layout([paragraph], new PdfOptions(), source.Token));
+    }
 }

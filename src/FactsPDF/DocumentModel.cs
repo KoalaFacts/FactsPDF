@@ -122,18 +122,21 @@ internal sealed record TextStyle
     public TextDecorationPattern DecorationPattern { get; set; }
     public bool BreakAll { get; set; }
     /// <summary>word-break:keep-all: no break between letters, ideographs, kana or Hangul syllables.</summary>
-    public bool KeepAll { get; set; }
+    public bool KeepAll { get => (flow & 1) != 0; set => Bit(1, value); }
     /// <summary>hyphens:none: a soft hyphen (U+00AD) is no line break opportunity; manual, the initial value, breaks there and shows a hyphen.</summary>
-    public bool NoHyphens { get; set; }
+    public bool NoHyphens { get => (flow & 2) != 0; set => Bit(2, value); }
     /// <summary>white-space:break-spaces (white-space-collapse:break-spaces): preserved spaces never hang and each may wrap.</summary>
-    public bool BreakSpaces { get; set; }
-    /// <summary>tab-size: a count of space advances, or a length in points when <see cref="TabSizeIsLength"/>.</summary>
-    public double TabSize { get; set; } = 8;
-    public bool TabSizeIsLength { get; set; }
+    public bool BreakSpaces { get => (flow & 4) != 0; set => Bit(4, value); }
+    /// <summary>tab-size: a count of space advances, or, stored negated, a length in points.</summary>
+    public float TabSize { get; set; } = 8;
+    internal bool TabSizeIsLength => TabSize < 0;
     /// <summary>line-break; Normal is also auto.</summary>
-    public LineBreakStrictness LineBreak { get; set; }
+    public LineBreakStrictness LineBreak { get => (LineBreakStrictness)((flow >> 3) & 3); set => flow = (byte)((flow & ~(3 << 3)) | ((int)value << 3)); }
     /// <summary>visibility (inherited): hidden and collapse keep the layout and paint nothing.</summary>
-    public TextVisibility Visibility { get; set; }
+    public TextVisibility Visibility { get => (TextVisibility)((flow >> 5) & 3); set => flow = (byte)((flow & ~(3 << 5)) | ((int)value << 5)); }
+    // The line breaking and visibility switches above, packed into one byte: a style is allocated per element.
+    private byte flow;
+    private void Bit(int bit, bool on) => flow = (byte)(on ? flow | bit : flow & ~bit);
     /// <summary>word-break:break-word, which wraps like overflow-wrap:anywhere whatever overflow-wrap computes to.</summary>
     public bool BreakWordsByWordBreak { get; set; }
     /// <summary>overflow-wrap:anywhere: wraps like break-word, but its breaks also count for min-content.</summary>
@@ -303,7 +306,11 @@ internal sealed record ClipRegion(double X, double Top, double Width, double Hei
 
 internal sealed class LayoutPage
 {
-    public List<ClipRegion> Clips { get; } = [];
+    // Created by the first clipped box, so a page without one allocates no list.
+    private List<ClipRegion>? clips;
+    private static readonly List<ClipRegion> NoClips = [];
+    public List<ClipRegion> Clips => clips ?? NoClips;
+    internal List<ClipRegion> WritableClips => clips ??= [];
     public List<PlacedText> Runs { get; } = [];
     public List<PaintedBox> PaintBoxes { get; } = [];
     public List<PlacedDisc> Discs { get; } = [];
@@ -350,9 +357,14 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
 
 // M5 retains the box tree; M6 computes geometry; M7 paints single-page
 // borders/backgrounds; M8 slices continued decorations across page fragments.
-internal readonly record struct CssLength(double Value, bool IsPercent = false)
+// A length in points, or (IsPercent) a percentage of the containing block plus Fixed points, which only
+// a calc() sum of a percentage and a length produces.
+internal readonly record struct CssLength(double Value, bool IsPercent = false, double Fixed = 0)
 {
-    internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;
+    internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 + Fixed : Value;
+
+    /// <summary>Whether the length is a percentage plus a fixed length (see calc()).</summary>
+    internal bool IsMixed => IsPercent && Fixed != 0;
 }
 
 // Specified values are retained until the containing block's content width is known.

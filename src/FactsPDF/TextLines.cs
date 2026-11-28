@@ -237,16 +237,13 @@ internal static class TextLines
         private const int MaxPooledGlyphs = 4096;
         [ThreadStatic] private static LineWrapper? pooled;
 
-        // Lookahead a break decision needs (LB15b, LB19a, LB25 and LB28a read up to two units ahead), the
-        // glyphs kept before the next line for the rules that read behind, and how many are read at a time.
-        private const int Lookahead = 3, Overlap = 16, ReadChunk = 256;
+        // The glyphs kept before the next line for the rules that read behind, and how many are read at a time.
+        private const int Overlap = 16, ReadChunk = 256;
 
         // The window of the paragraph being wrapped: from a little before the next line to a little past it.
         private readonly List<Glyph> all = [];
         private readonly List<Glyph> current = [];
         private readonly LineBreakAnalyzer analyzer = new();
-        private int[] scalars = [];
-        private byte[] opportunities = [];
         // Created by the first line with an inline image, so text-only wrapping allocates nothing more.
         private List<InlineAtom>? atoms;
         private bool rented;
@@ -355,58 +352,54 @@ internal static class TextLines
             next = 0;
             readerDone = false;
             reader = new GlyphReader(paragraph, options, resolved, containingWidth, cancellation);
+            var style = paragraph.Style;
+            analyzer.Reset(style.LineBreak,
+                style.KeepAll ? WordBreakMode.KeepAll : style.BreakAll ? WordBreakMode.BreakAll : WordBreakMode.Normal);
         }
 
-        // Reads more glyphs into the window and works out where the window may break.
+        // Reads more glyphs into the window and hands only those to the analyzer, which decides the
+        // boundaries that now have the units they read ahead; earlier decisions are kept.
         private void Fill()
         {
+            Span<int> chunk = stackalloc int[ReadChunk];
             var added = 0;
             while (added < ReadChunk && !readerDone)
             {
-                if (reader.MoveNext()) { all.Add(reader.Current); added++; }
+                if (reader.MoveNext())
+                {
+                    all.Add(reader.Current);
+                    chunk[added++] = reader.Current.Scalar;
+                }
                 else readerDone = true;
             }
-            Analyze();
+            analyzer.Append(chunk[..added], readerDone, cancellation);
         }
 
-        private void Analyze()
+        // The opportunity before glyph i: the analyzer's, except that break-spaces gives one after every preserved
+        // space and a soft hyphen breaks only where hyphens is manual (the initial value).
+        private byte Opportunity(int i)
         {
-            var count = all.Count;
-            if (scalars.Length < count)
-            {
-                scalars = new int[Math.Max(count, scalars.Length * 2)];
-                opportunities = new byte[scalars.Length];
-            }
-            for (var i = 0; i < count; i++) scalars[i] = all[i].Scalar;
-            var style = paragraph.Style;
-            analyzer.Analyze(scalars.AsSpan(0, count), style.LineBreak,
-                style.KeepAll ? WordBreakMode.KeepAll : style.BreakAll ? WordBreakMode.BreakAll : WordBreakMode.Normal)
-                .CopyTo(opportunities);
-            // break-spaces: a soft wrap opportunity follows every preserved space, even before another one.
-            for (var i = 1; i < count; i++)
-            {
-                if (all[i - 1].Scalar == 32 && all[i - 1].Style.BreakSpaces && all[i].Scalar != 10)
-                    opportunities[i] = LineBreakAnalyzer.Allowed;
-                // A soft hyphen breaks only where hyphens is manual (the initial value).
-                else if (all[i - 1].Scalar == 0xAD && all[i - 1].Style.NoHyphens) opportunities[i] = LineBreakAnalyzer.No;
-            }
+            var previous = all[i - 1];
+            if (previous.Scalar == 32 && previous.Style.BreakSpaces && all[i].Scalar != 10) return LineBreakAnalyzer.Allowed;
+            if (previous.Scalar == 0xAD && previous.Style.NoHyphens) return LineBreakAnalyzer.No;
+            return analyzer.Breaks[i];
         }
 
         // Whether glyph `index` exists, with its break decision final.
         private bool Has(int index)
         {
-            while (!readerDone && index + Lookahead >= all.Count) Fill();
+            while (!readerDone && index >= analyzer.FinalCount) Fill();
             return index < all.Count;
         }
 
-        // Drops the glyphs of finished lines, keeping a few before the next one.
+        // Drops the glyphs of finished lines, keeping a few before the next one. A line that never breaks stays whole.
         private void Trim()
         {
             var drop = next - Overlap;
             if (drop < 4 * ReadChunk) return;
-            all.RemoveRange(0, drop);
-            next -= drop;
-            Analyze();
+            var dropped = analyzer.Discard(drop);
+            all.RemoveRange(0, dropped);
+            next -= dropped;
         }
 
         private static bool IsCollapsibleSpace(Glyph glyph) => glyph.Scalar == 32 && !glyph.Style.PreserveSpaces;
@@ -420,7 +413,7 @@ internal static class TextLines
         // wrapping is off only where both sides forbid it.
         private bool MayWrapBefore(int i)
         {
-            if (opportunities[i] == LineBreakAnalyzer.No) return false;
+            if (Opportunity(i) == LineBreakAnalyzer.No) return false;
             var previous = all[i - 1];
             return previous.Scalar == 32 ? !previous.Style.NoWrap : !(previous.Style.NoWrap && all[i].Style.NoWrap);
         }
@@ -431,7 +424,7 @@ internal static class TextLines
             if (glyph.Scalar != 9) return glyph.Width;
             var style = glyph.Style;
             var space = style.FontSize * glyph.Width1000 / 1000 + style.LetterSpacing + style.WordSpacing;
-            var stop = style.TabSizeIsLength ? style.TabSize : style.TabSize * space;
+            var stop = style.TabSizeIsLength ? -style.TabSize : style.TabSize * space;
             if (!(stop > 0)) return 0;
             return stop - x % stop;
         }
