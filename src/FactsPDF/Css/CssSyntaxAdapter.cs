@@ -108,6 +108,14 @@ internal static class CssSyntaxAdapter
                     ValidateAlignContent(node);
                     continue;
                 }
+                // all: a CSS-wide keyword for every property FactsPDF models, at the position of the
+                // declaration in the cascade (everything else is at its initial value already, and
+                // direction and unicode-bidi are not reset by all).
+                if (name == "all")
+                {
+                    CompileAll(node, budget, fixedOrder, output);
+                    continue;
+                }
                 // Fail unsupported properties first even when the value contains
                 // functions or multiple tokens.
                 var initialOnly = InitialOnlyValue(name);
@@ -977,6 +985,10 @@ internal static class CssSyntaxAdapter
         "text-overflow" => "clip",
         "line-clamp" or "-webkit-line-clamp" => "none",
         "box-decoration-break" or "-webkit-box-decoration-break" => "slice",
+        // Named pages: every page has the one geometry and furniture of the writer's options (and the
+        // unnamed @page rule), so only the initial page:auto asks for what is printed; a page name would
+        // force a page break wherever it changes and apply its own @page size and margins.
+        "page" => "auto",
         // Transform, masking and float-shape resets: like transform:none, the individual
         // transforms and perspective at none and transform-style:flat move nothing; no mask or
         // float shape is ever applied, so none asks for exactly what is drawn.
@@ -1136,6 +1148,42 @@ internal static class CssSyntaxAdapter
         for (var i = node.Values.Count - 1; i >= 0; i--)
             if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) return i;
         return -1;
+    }
+
+    // Every property the cascade models, by a name Property() maps to its slot. Properties FactsPDF does not
+    // model are never anything but their initial value, which is what all would give them.
+    private static readonly string[] AllProperties =
+    [
+        "font-size", "font-weight", "font-style", "color", "line-height", "text-align", "text-align-last",
+        "border-collapse", "orphans", "widows", "white-space", "overflow-wrap", "word-break", "text-indent",
+        "letter-spacing", "word-spacing", "text-transform", "hyphens", "display", "content", "flex-direction",
+        "flex-wrap", "justify-content", "align-items", "align-self", "flex-grow", "flex-shrink", "flex-basis",
+        "column-gap", "row-gap", "order", "grid-template-columns", "justify-items", "justify-self",
+        "list-style-type", "list-style-position", "text-decoration-line", "text-decoration-color",
+        "text-decoration-style", "text-decoration-thickness", "text-underline-offset", "border-top-left-radius",
+        "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius", "margin-top",
+        "margin-bottom", "margin-left", "margin-right", "break-before", "break-after", "break-inside", "width",
+        "min-width", "max-width", "min-height", "height", "max-height", "box-sizing", "outline-width",
+        "outline-style", "outline-color", "outline-offset", "padding-top", "padding-right", "padding-bottom",
+        "padding-left", "background-color", "background-clip", "border-top-width", "border-right-width",
+        "border-bottom-width", "border-left-width", "border-top-style", "border-right-style",
+        "border-bottom-style", "border-left-style", "border-top-color", "border-right-color",
+        "border-bottom-color", "border-left-color", "table-layout", "object-fit", "object-position",
+        "counter-reset", "counter-increment", "counter-set", "vertical-align"
+    ];
+
+    private static void CompileAll(CssDeclarationNode node, CssBudget budget, int fixedOrder, List<CssDeclaration> output)
+    {
+        var keyword = FirstIdent(node);
+        var components = 0;
+        for (var i = 0; i < node.Values.Count; i++)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) components++;
+        if (components != 1 || keyword is null || !Wide(keyword))
+            throw new FactsPdfException("FPDF1202",
+                "all takes initial, inherit, unset, revert or revert-layer.", node.Span.Start);
+        var order = fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start);
+        foreach (var property in AllProperties)
+            output.Add(CssDeclaration.Create(Property(property, node.Span.Start), "all", keyword, node.Important, order, node.Span.Start));
     }
 
     private static bool IsBackgroundLayerNoOp(string name) =>

@@ -821,6 +821,7 @@ internal static class CssSpecValidity
         ["background-origin"] = "[border-box | padding-box | content-box]#",
         ["hyphens"] = "none | manual | auto",
         ["table-layout"] = "auto | fixed",
+        ["all"] = "initial | inherit | unset | revert | revert-layer",
         ["counter-reset"] = "none | [<custom-ident> <integer>?]+",
         ["counter-increment"] = "none | [<custom-ident> <integer>?]+",
         ["counter-set"] = "none | [<custom-ident> <integer>?]+",

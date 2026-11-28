@@ -119,11 +119,11 @@ public sealed class GeneratedContentTests
         => Assert.That(Pdf("<style>.d::before{content:\"X\"}</style><p>A</p><div class='d' style='display:none'>B</div>"),
             Is.EqualTo(Pdf("<p>A</p>")));
 
-    [TestCase("<style>p::before{content:counter(item)}</style><p>A</p>", "FPDF1202")]
+    [TestCase("<style>p::before{content:counter(item,disc)}</style><p>A</p>", "FPDF1202")]
     [TestCase("<style>p::before{content:attr(title)}</style><p>A</p>", "FPDF1202")]
     [TestCase("<style>p::before{content:url(a.png)}</style><p>A</p>", "FPDF1202")]
     [TestCase("<style>p::before{content:open-quote}</style><p>A</p>", "FPDF1202")]
-    [TestCase("<style>.unused::after{content:\"a\" counter(x)}</style><p>A</p>", "FPDF1202")]
+    [TestCase("<style>.unused::after{content:\"a\" counters(x)}</style><p>A</p>", "FPDF1202")]
     [TestCase("<style>p::before{content:\"x\";display:inline-block}</style><p>A</p>", "FPDF1202")]
     [TestCase("<style>p::first-line{color:red}</style><p>A</p>", "FPDF1203")]
     [TestCase("<style>p::marker{color:red}</style><p>A</p>", "FPDF1203")]
