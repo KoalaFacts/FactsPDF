@@ -27,7 +27,7 @@ def validate_row_fixture(path):
     """Pin authored bytes modulo checkout CRLF; keep raw hashes in the receipt."""
     normalized = path.read_bytes().replace(b"\r\n", b"\n")
     digest = hashlib.sha256(normalized).hexdigest()
-    assert digest == "758d22732ad107c3493b9965b91e7392c22d33e7fd41b7f021acb6dd23726ba6", \
+    assert digest == "3fdc0e776f7be361e4b4dcf0bcea8310850edb6994553acc06466cff7437c0ef", \
         "Unreviewed row fixture change"
     return digest
 

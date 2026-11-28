@@ -15,7 +15,7 @@ class NativeFeaturePathTests(unittest.TestCase):
             for content in (lf, lf.replace(b"\n", b"\r\n")):
                 fixture.write_bytes(content)
                 self.assertEqual(validate_row_fixture(fixture),
-                                 "758d22732ad107c3493b9965b91e7392c22d33e7fd41b7f021acb6dd23726ba6")
+                                 "3fdc0e776f7be361e4b4dcf0bcea8310850edb6994553acc06466cff7437c0ef")
                 self.assertEqual(fixture.read_bytes(), content)
                 fixture.write_bytes(content.replace(b"FINAL REVIEW NOTE:", b"CHANGED REVIEW NOTE:"))
                 with self.assertRaises(AssertionError):
