@@ -111,7 +111,7 @@ internal static class CssSyntaxAdapter
                 // Fail unsupported properties first even when the value contains
                 // functions or multiple tokens.
                 var initialOnly = InitialOnlyValue(name);
-                var property = initialOnly is null && !IsInteractionOnly(name) && name != "font" ? Property(name, node.Span.Start) : default;
+                var property = initialOnly is null && !IsInteractionOnly(name) && !IsBackgroundLayerNoOp(name) && name != "font" ? Property(name, node.Span.Start) : default;
                 // A supported property whose value holds var() can be checked only after substitution,
                 // for each element it applies to (CSS Custom Properties: valid at parse time when the
                 // var() syntax is). It keeps one cascade order for every declaration it expands into.
@@ -130,6 +130,14 @@ internal static class CssSyntaxAdapter
                 if (initialOnly is not null)
                 {
                     ValidateInitialOnly(name, initialOnly, node);
+                    continue;
+                }
+                // background-repeat, -position and -size place a background image, and none is ever
+                // painted (only background-image:none is accepted), so every valid value changes
+                // nothing a browser prints on a box that has only a background colour.
+                if (IsBackgroundLayerNoOp(name))
+                {
+                    ValidateBackgroundLayer(node, name);
                     continue;
                 }
                 // Interaction-only properties (cursor, pointer-events, user-select, resize) change
@@ -161,6 +169,15 @@ internal static class CssSyntaxAdapter
                 if (name == "grid-template-columns")
                 {
                     CompileGridColumns(node, budget, output);
+                    continue;
+                }
+                // background-clip: the clip of the first background layer paints the colour (one layer,
+                // since the image is none); a later list item names a layer that does not exist.
+                if (name == "background-clip")
+                {
+                    ValidateBackgroundLayer(node, name);
+                    output.Add(CssDeclaration.Create(CssProperty.BackgroundClip, name, BackgroundClipKeyword(node), node.Important,
+                        fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start), node.Span.Start));
                     continue;
                 }
                 // RGB and HSL functions are lowered to their equivalent hex colour
@@ -731,6 +748,8 @@ internal static class CssSyntaxAdapter
                     throw new FactsPdfException("FPDF1202", "orphans and widows require a positive integer.", tokenOffset);
                 if (!Wide(token)) ValidateComponent(name, token, tokenOffset);
                 Emit(property, token, tokenOffset);
+                // The background shorthand resets the clip to its initial value, border-box.
+                if (name == "background") Emit(CssProperty.BackgroundClip, "initial", tokenOffset, "background-clip");
             }
             catch (FactsPdfException error) when (warnings is not null && error.Code is "FPDF1201" or "FPDF1202"
                 && CssSpecValidity.InvalidDeclaration(node.Name, CanonicalName(node.Name.ToLowerInvariant()), node.Values))
@@ -1041,6 +1060,28 @@ internal static class CssSyntaxAdapter
         "text-emphasis-color" => "currentcolor",
         _ => null
     };
+
+    private static bool IsBackgroundLayerNoOp(string name) =>
+        name is "background-repeat" or "background-position" or "background-size";
+
+    // A background layer property is valid when its grammar (a superset of Chrome's) matches; a
+    // value it proves invalid is dropped by every browser, so strict mode fails it.
+    private static void ValidateBackgroundLayer(CssDeclarationNode node, string name)
+    {
+        if (CssSpecValidity.InvalidDeclaration(node.Name, name, node.Values))
+            throw new FactsPdfException("FPDF1202", $"Invalid {name} value.", node.Span.Start);
+    }
+
+    // The computed clip keyword of a validated background-clip value: the first list item, or the
+    // CSS-wide keyword that is the whole value. text and border-area paint the colour in glyph or
+    // border shapes, which no report box does.
+    private static string BackgroundClipKeyword(CssDeclarationNode node)
+    {
+        var keyword = FirstIdent(node) ?? throw new FactsPdfException("FPDF1202", "Invalid background-clip value.", node.Span.Start);
+        if (keyword is "border-box" or "padding-box" or "content-box" || Wide(keyword)) return keyword;
+        throw new FactsPdfException("FPDF1202",
+            $"background-clip supports border-box, padding-box and content-box; '{keyword}' is not rendered.", node.Span.Start);
+    }
 
     private static void ValidateInitialOnly(string name, string initial, CssDeclarationNode node)
     {
@@ -1849,6 +1890,7 @@ internal static class CssSyntaxAdapter
         "padding-bottom" or "padding-block-end" => CssProperty.PaddingBottom,
         "padding-left" or "padding-inline" or "padding-inline-start" => CssProperty.PaddingLeft,
         "background" or "background-color" => CssProperty.BackgroundColor,
+        "background-clip" => CssProperty.BackgroundClip,
         "border-inline-width" or "border-inline-start-width" => CssProperty.BorderLeftWidth,
         "border-inline-end-width" => CssProperty.BorderRightWidth,
         "border-block-width" or "border-block-start-width" => CssProperty.BorderTopWidth,

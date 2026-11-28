@@ -36,7 +36,7 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.JustifySelf + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.PageName + 1];
 
     /// <summary>The value of the text-align declaration that won the cascade for the element the
     /// last <see cref="Compute"/> call computed, or null when none applied to it.</summary>
@@ -568,6 +568,18 @@ internal sealed class CssStylesheets
                 if (!current.HasValue || reverting.Beats(current.Value)) winners[(int)declaration.Property] = reverting;
                 return;
             }
+            // background-clip moves the edge the background colour is painted to on a report panel,
+            // paragraph or heading outside lists and tables. Elsewhere the colour is painted to the border
+            // box, which is the initial value; any other clip there would be silently ignored.
+            if (declaration.Property == CssProperty.BackgroundClip && !ClipHost(subject, path))
+            {
+                // Inline text, br and column boxes paint no background here, so no clip changes anything.
+                if (declaration.Value is "border-box" or "initial" or "unset" or "inherit"
+                    || HtmlDocumentReader.InlineTag(subject) || subject is "br" or "col" or "colgroup") return;
+                throw new FactsPdfException("FPDF1201",
+                    "background-clip padding-box and content-box are supported on report panels, paragraphs and headings outside lists and tables; elsewhere only border-box.",
+                    declaration.Offset);
+            }
             // content generates boxes only for ::before and ::after; on an element it changes
             // nothing (as in a browser), so the validated value is dropped there.
             if (declaration.Property == CssProperty.Content && pseudo == CssPseudoElement.None) return;
@@ -1079,6 +1091,19 @@ internal sealed class CssStylesheets
                     "inherit" => parentBox.AvoidBreakInside,
                     _ => throw new InvalidOperationException("Unvalidated break-inside.")
                 };
+            else if (declaration.Property == CssProperty.BackgroundClip)
+            {
+                // The background shorthand resets the clip on every element that sets one: skip the
+                // private box copy when nothing changes.
+                var clip = declaration.Value switch
+                {
+                    "inherit" => parentBox.BackgroundClip,
+                    "padding-box" => BackgroundClip.PaddingBox,
+                    "content-box" => BackgroundClip.ContentBox,
+                    _ => BackgroundClip.BorderBox
+                };
+                if (box.BackgroundClip != clip) Own().BackgroundClip = clip;
+            }
             else if (CssDeclarations.IsBoxProperty(declaration.Property))
                 CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
@@ -1122,6 +1147,18 @@ internal sealed class CssStylesheets
                         || cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
         }
+        if (box.BackgroundClip == BackgroundClip.ContentBox && (box.PaddingTop.IsPercent || box.PaddingRight.IsPercent
+                || box.PaddingBottom.IsPercent || box.PaddingLeft.IsPercent))
+            throw new FactsPdfException("FPDF1201",
+                "background-clip:content-box with a percentage padding is not supported.",
+                winners[(int)CssProperty.BackgroundClip]?.Declaration.Offset ?? elementOffset);
+        // A rounded content box shrinks every corner radius by the padding on both axes; that is a
+        // circle only when the four paddings agree.
+        if (box.BackgroundClip == BackgroundClip.ContentBox && box.HasRoundedCorners
+            && (box.PaddingTop != box.PaddingRight || box.PaddingTop != box.PaddingBottom || box.PaddingTop != box.PaddingLeft))
+            throw new FactsPdfException("FPDF1201",
+                "background-clip:content-box on a rounded box requires equal padding on all four sides.",
+                winners[(int)CssProperty.BackgroundClip]?.Declaration.Offset ?? elementOffset);
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)
             throw new FactsPdfException("FPDF1201",
                 "Rectangular report outlines cannot be combined with rounded corners.",
@@ -1186,6 +1223,14 @@ internal sealed class CssStylesheets
     // html{display:flex} only centres a body narrower than the page in a browser window; the
     // layout accepts it where the body fills the page width, where every flex container property
     // places nothing (one item, no free space, the line as tall as the item).
+    // Elements whose background colour is painted by the report panel and paragraph box painter, which
+    // clips it to the padding or content box.
+    private static bool ClipHost(string subject, IReadOnlyList<CssElement> path) =>
+        subject is ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+            or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+        && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
+            or "td" or "th" or "thead" or "tbody" or "tfoot");
+
     private static bool RootFlexNoOp(CssDeclaration declaration) =>
         declaration.Property is CssProperty.JustifyContent or CssProperty.AlignItems or CssProperty.FlexDirection
             or CssProperty.FlexWrap or CssProperty.ColumnGap or CssProperty.RowGap;

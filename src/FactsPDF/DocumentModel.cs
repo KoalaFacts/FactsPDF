@@ -322,6 +322,7 @@ internal readonly record struct CssLength(double Value, bool IsPercent = false)
 // The pattern affects PDF strokes, while the existing Solid bit continues to
 // distinguish painted borders from CSS none without changing legacy boxes.
 internal enum BorderPattern { Solid, Dashed, Dotted }
+internal enum BackgroundClip { BorderBox, PaddingBox, ContentBox }
 internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
 {
     internal BorderPattern Pattern { get; init; } = BorderPattern.Solid;
@@ -402,6 +403,8 @@ internal sealed record BoxStyle
     // intact rather than letting its paragraphs split between PDF pages.
     public bool AvoidBreakInside { get; set; }
     public Rgb? BackgroundColor { get; set; } // null: transparent
+    // The box edge the background colour is painted to (background-clip); not inherited.
+    public BackgroundClip BackgroundClip { get; set; }
     // Retain the currentColor token when background:inherit is authored on a
     // child: its actual ink resolves against the receiving element's colour.
     // The renderer still consumes only the final BackgroundColor RGB value.

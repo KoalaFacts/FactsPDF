@@ -135,7 +135,14 @@ internal static class PdfPaintSerializer
                 continue;
             }
             if (s.BackgroundColor.HasValue)
-                Rect(output, s.BackgroundColor.Value, x, y, width, height, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
+            {
+                var (fillLeft, fillTop, fillRight, fillBottom) = ClipInsets(box);
+                var fillWidth = width - fillLeft - fillRight;
+                var fillHeight = height - fillTop - fillBottom;
+                if (fillWidth > 0 && fillHeight > 0)
+                    Rect(output, s.BackgroundColor.Value, x + fillLeft, y + fillTop, fillWidth, fillHeight, pageHeight,
+                        maxOutputBytes, box.SourceOffset, ref alpha);
+            }
 
             // Slice does not repeat horizontal borders on intermediate pages.
             // Short first/last fragments clip the border to their own bounds;
@@ -238,6 +245,27 @@ internal static class PdfPaintSerializer
             throw new FactsPdfException("FPDF1401", "PDF outline content exceeds MaxOutputBytes.", box.SourceOffset);
     }
 
+    // The distances from the border box to the edge the background colour is clipped to
+    // (background-clip). The top and bottom borders and paddings belong to the first and last page
+    // fragment only, as everywhere else in a sliced box.
+    private static (double Left, double Top, double Right, double Bottom) ClipInsets(PaintedBox box)
+    {
+        var style = box.Style;
+        if (style.BackgroundClip == BackgroundClip.BorderBox) return default;
+        var left = style.BorderLeft.EffectiveWidth;
+        var right = style.BorderRight.EffectiveWidth;
+        var top = box.TopBorderHeight;
+        var bottom = box.BottomBorderHeight;
+        if (style.BackgroundClip == BackgroundClip.ContentBox)
+        {
+            left += style.PaddingLeft.Value;
+            right += style.PaddingRight.Value;
+            if (box.IsFirstFragment) top += style.PaddingTop.Value;
+            if (box.IsLastFragment) bottom += style.PaddingBottom.Value;
+        }
+        return (left, top, right, bottom);
+    }
+
     // Four physical corners paint one closed outer background and one even-odd
     // border ring. On continued boxes the top two radii belong only to the
     // first fragment; the bottom two belong only to the final fragment.
@@ -277,8 +305,33 @@ internal static class PdfPaintSerializer
         {
             alpha.BeginPaint(output, bg).AppendInvariant(bg.R, Number).Append(' ').AppendInvariant(bg.G, Number).Append(' ')
                 .AppendInvariant(bg.B, Number).Append(" rg ");
-            RoundedPath(output, x, y, w, h, tl, tr, br, bl);
-            output.Append("f Q\n");
+            var filled = true;
+            if (style.BackgroundClip == BackgroundClip.BorderBox)
+                RoundedPath(output, x, y, w, h, tl, tr, br, bl);
+            else
+            {
+                // The clip edge is inset by the border (and the padding for the content box) and its
+                // corner radii shrink by the same distance, never below zero.
+                var (insetLeft, insetTop, insetRight, insetBottom) = ClipInsets(box);
+                var clipWidth = w - insetLeft - insetRight;
+                var clipHeight = h - insetTop - insetBottom;
+                filled = clipWidth > 0 && clipHeight > 0;
+                if (filled)
+                {
+                    double ctl, ctr, cbr, cbl;
+                    if (uniform)
+                    {
+                        var clamp = Math.Min(clipWidth / 2, clipHeight / (top && bottom ? 2 : 1));
+                        ctl = ctr = top ? Math.Min(Math.Max(0, tl - insetLeft), clamp) : 0;
+                        cbr = cbl = bottom ? Math.Min(Math.Max(0, bl - insetLeft), clamp) : 0;
+                    }
+                    else
+                        (ctl, ctr, cbr, cbl) = FitCorners(Math.Max(0, tl - insetLeft), Math.Max(0, tr - insetLeft),
+                            Math.Max(0, br - insetLeft), Math.Max(0, bl - insetLeft), clipWidth, clipHeight);
+                    RoundedPath(output, x + insetLeft, y + insetBottom, clipWidth, clipHeight, ctl, ctr, cbr, cbl);
+                }
+            }
+            output.Append(filled ? "f Q\n" : "Q\n");
             if (output.Length > maxOutputBytes)
                 throw new FactsPdfException("FPDF1401", "PDF rounded background exceeds MaxOutputBytes.", box.SourceOffset);
         }

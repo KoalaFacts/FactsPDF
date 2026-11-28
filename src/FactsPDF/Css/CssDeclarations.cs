@@ -14,6 +14,7 @@ internal enum CssProperty
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
     ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
+    BackgroundClip, TableLayout, Hyphens, ObjectFit, ObjectPosition, CounterReset, CounterIncrement, CounterSet, PageName,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.
@@ -259,6 +260,7 @@ internal static class CssDeclarations
         or CssProperty.BorderTopLeftRadius or CssProperty.BorderTopRightRadius
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
         or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
+        or CssProperty.BackgroundClip or CssProperty.TableLayout or CssProperty.ObjectFit or CssProperty.ObjectPosition
         || CssFlexValues.IsFlexOrGridProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
@@ -416,6 +418,17 @@ internal static class CssDeclarations
                 current.MarginRight = wide ? from.MarginRight : length;
                 current.MarginRightAuto = wide ? from.MarginRightAuto : auto;
             }
+            return current;
+        }
+        if (property == CssProperty.BackgroundClip)
+        {
+            current.BackgroundClip = value switch
+            {
+                "inherit" => parent.BackgroundClip,
+                "padding-box" => BackgroundClip.PaddingBox,
+                "content-box" => BackgroundClip.ContentBox,
+                _ => BackgroundClip.BorderBox
+            };
             return current;
         }
         if (property == CssProperty.BackgroundColor)
