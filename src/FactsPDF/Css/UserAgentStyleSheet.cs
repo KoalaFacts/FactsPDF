@@ -49,6 +49,7 @@ internal static class UserAgentStyleSheet
         fieldset{margin-left:2px;margin-right:2px;padding:.35em .75em .625em;border:2px solid #f0f0f0}
         iframe{border:2px solid;border-color:#9a9a9a #eee #eee #9a9a9a}
         table{border-collapse:separate;box-sizing:border-box;text-indent:initial}
+        input,button{color:#000;font-size:13.3333px;font-weight:normal;font-style:normal;line-height:normal;letter-spacing:normal;word-spacing:normal;text-transform:none;text-indent:0}
         td,th{padding:1px;vertical-align:inherit}
         thead,tbody,tfoot,tr{vertical-align:middle}
         """;

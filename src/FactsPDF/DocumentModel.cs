@@ -642,9 +642,13 @@ internal record BlockChildList : BlockChild, IReadOnlyList<BlockChild>
     }
 }
 
+// A line of text a form control prints inside its box: the resolved glyphs, their total advance
+// and the position of the line's start and baseline from the control's border box top-left, in points.
+internal sealed record ControlText(List<TextLines.Glyph> Glyphs, double Width, double X, double Baseline);
+
 // A replaced element: a bound raster image, or an inline svg read into vector shapes (Vector).
 internal sealed record ImageNode(PdfImage? Image, TextStyle Style, BoxStyle BoxStyle,
-    int SourceOffset, string? Alt, SvgGraphic? Vector = null) : BlockChild
+    int SourceOffset, string? Alt, SvgGraphic? Vector = null, ControlText[]? Texts = null, double? Baseline = null) : BlockChild
 {
     // The intrinsic aspect ratio's terms: the pixel size, or the svg's viewBox size.
     internal double RatioWidth => Vector?.RatioWidth ?? Image!.PixelWidth;

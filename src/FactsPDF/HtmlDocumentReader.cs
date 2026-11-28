@@ -53,7 +53,7 @@ internal static class HtmlDocumentReader
     private static string? SubjectAlias(string name) => name switch
     {
         "form" or "details" or "summary" or "fieldset" or "datalist" or "dialog" or "audio" => "div",
-        "canvas" or "video" or "iframe" => "svg",
+        "canvas" or "video" or "iframe" or "input" or "button" => "svg",
         _ => null
     };
     private static bool BoxTag(string name) => name is "img" or "svg" or "hr" or "table" or "col" or "td" or "th" or "caption"
@@ -150,6 +150,7 @@ internal static class HtmlDocumentReader
             case "details": return attribute == "name";
             case "slot": return attribute == "name";
             case "fieldset": return attribute is "disabled" or "form" or "name";
+            case "input" or "button": return FormControls.Attribute(name, attribute);
             case "datalist": return false;
             case "dialog":
                 if (attribute == "open")
@@ -197,7 +198,7 @@ internal static class HtmlDocumentReader
             if (stopped || token.Kind is not (HtmlTokenKind.Start or HtmlTokenKind.End)) return;
             var name = token.Value;
             if (name is "meta" or "link" or "base" or "br" || VoidInlineTag(name)) return; // the reader skips them before its depth check
-            if (name is "style" or "img" or "hr" or "col")
+            if (name is "style" or "img" or "hr" or "col" or "input")
             {
                 // Checked by the reader like any element, but never pushed.
                 if (token.Kind == HtmlTokenKind.Start) Check(token);
@@ -344,6 +345,7 @@ internal static class HtmlDocumentReader
         var anonymous = false;
         var elements = 0; var insideStyle = false; var baseSeen = false;
         SvgDocument? svg = null;
+        var controlGlyphs = new Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)>();
         // html, head and body frames the HTML parser implied (HtmlImpliedElements): they are part of
         // the tree selectors see, but no element or depth limit counts them.
         var impliedOpen = 0; var impliedHead = false;
@@ -439,7 +441,7 @@ internal static class HtmlDocumentReader
         object? Generate(CssPseudoElement pseudo, string name, TextStyle style, BoxStyle box, int offset)
         {
             // A replaced image generates no ::before or ::after box in a browser.
-            if (name == "img" || ReplacedTag(name)) return null;
+            if (name is "img" or "input" || ReplacedTag(name)) return null;
             var (display, content) = sheets.PseudoKeys(path, pseudo);
             if (content is null || content[0] != '"' || display == "none") return null;
             var block = box.HasItems || display is "block" or "flex";
@@ -654,7 +656,7 @@ internal static class HtmlDocumentReader
                 insideStyle = true; continue;
             }
             if (!(ParagraphTag(name) || Container(name) || InlineTag(name) || TableMarkup.IsTag(name)
-                || VoidInlineTag(name) || ReplacedTag(name) || HiddenTag(name)
+                || VoidInlineTag(name) || ReplacedTag(name) || HiddenTag(name) || FormControls.Tag(name)
                 || name is "img" or "svg" or "hr" or "br" or "head" or "title" or "meta" or "link" or "base"))
                 throw new FactsPdfException("FPDF1102", $"Element '{name}' is not supported in this development slice.", token.Offset);
             if (token.Kind == HtmlTokenKind.End)
@@ -700,7 +702,7 @@ internal static class HtmlDocumentReader
                 foreach (var (attribute, value) in token.Attributes!)
                     if (attribute == "rel") LinkRelations(value, token.Offset);
             // An svg is foreign content, where a self-closing tag closes the element.
-            if (token.SelfClosing && !VoidInlineTag(name) && name is not ("img" or "svg" or "hr" or "br" or "meta" or "link" or "base" or "col"))
+            if (token.SelfClosing && !VoidInlineTag(name) && name is not ("img" or "svg" or "hr" or "br" or "meta" or "link" or "base" or "col" or "input"))
                 throw new FactsPdfException("FPDF1101", "Non-void HTML tags cannot be XML-self-closed in this subset.", token.Offset);
             if (name == "table" && table is not null)
                 CheckNestedTable(table, outerTables?.Count ?? 0, cellBlocks, stack[^1].Name, token.Offset);
@@ -965,7 +967,7 @@ internal static class HtmlDocumentReader
             path.Add(CssElement.From(token, t));
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
-                    ParagraphTag(name), BoxTag(name) || HiddenTag(name),
+                    ParagraphTag(name), BoxTag(name) || HiddenTag(name) || FormControls.Tag(name),
                     token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br",
                     hidden: hidden || HiddenTag(name), listTypeHint: listTypeHint, widthHint: widthHint, heightHint: heightHint,
                     pseudoName: SubjectAlias(name) ?? (name != source && Container(name) ? name : null), uaName: firstSummary ? "summary" : name == "iframe" ? borderless ? "iframe-borderless" : "iframe" : name == "fieldset" ? name : null);
@@ -1043,6 +1045,33 @@ internal static class HtmlDocumentReader
                 if (name == "col") { path.RemoveAt(path.Count - 1); continue; }
                 stack.Add(new(name, style, boxStyle, null, token.Offset, 0, alignStart, After: after));
                 if (before is GeneratedText cellText) Add(cellText.Text, cellText.Style);
+                continue;
+            }
+            if (FormControls.Tag(name))
+            {
+                if ((table is null || cellBlocks > 0) && stack[^1].Box is { BoxStyle.HasItems: true })
+                    throw new FactsPdfException("FPDF1201", "A form control as a flex or grid item is not supported yet.", token.Offset);
+                string? label = null;
+                if (name == "button")
+                {
+                    // The label is the button's text; elements inside a button are not supported.
+                    var labelBuilder = new System.Text.StringBuilder();
+                    var closed = false;
+                    for (var i = t + 1; i < tokens.Count && !closed; i++)
+                    {
+                        var inner = tokens[i];
+                        if (inner.Kind == HtmlTokenKind.Text) labelBuilder.Append(HtmlTokens.Decode(inner.Value, inner.Offset));
+                        else if (inner.Kind == HtmlTokenKind.End && inner.Value == "button") { t = i; closed = true; }
+                        else throw new FactsPdfException("FPDF1101", "A button holds only text; elements inside a button are not supported yet.", inner.Offset);
+                    }
+                    if (!closed) throw new FactsPdfException("FPDF1101", "Unclosed element 'button'.", token.Offset);
+                    label = string.Join(' ', labelBuilder.ToString().Split(HtmlWhitespace, StringSplitOptions.RemoveEmptyEntries));
+                }
+                svg ??= new SvgDocument(options.MaxDisplayCommands, cancellation);
+                var control = FormControls.Build(name, token.Attributes!, label, style, boxStyle, token.Offset, options, svg, controlGlyphs);
+                path.RemoveAt(path.Count - 1);
+                if (control is null) continue;
+                AddReplaced(control, name, token.Offset);
                 continue;
             }
             if (name == "img")

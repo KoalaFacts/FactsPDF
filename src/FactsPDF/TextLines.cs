@@ -76,6 +76,11 @@ internal static class TextLines
                 charge(node.CommandCount + (placed.LinkUri is null ? 0 : 1), node.SourceOffset);
                 images.Add(new PlacedImage(node.Image, x + geometry.Left, outerTop + geometry.Top,
                     geometry.Width, geometry.Height, node.Vector, placed.LinkUri, node.SourceOffset, decoration));
+                // A form control's text lines (label, value, placeholder) are ordinary text runs on top of its vector box.
+                if (node.Texts is { } controlTexts)
+                    foreach (var text in controlTexts)
+                        AppendLine(new Line(text.Glyphs, text.Width, 0, 0, 0), x + geometry.Left + text.X,
+                            topOrigin - (outerTop + geometry.Top + text.Baseline), target, charge, cancellation, node.SourceOffset);
                 x += first.Width;
                 start++;
                 continue;
@@ -681,7 +686,8 @@ internal static class TextLines
                     InlineAlignKind.Middle => (height + XHeight(glyph.Style, glyph.SourceOffset)) / 2,
                     InlineAlignKind.TextTop => FontBox(glyph.Style, glyph.SourceOffset).Ascent,
                     InlineAlignKind.TextBottom => height - FontBox(glyph.Style, glyph.SourceOffset).Descent,
-                    _ => height,
+                    // A form control aligns its own text baseline, not its bottom edge, to the line's baseline.
+                    _ => image.Baseline ?? height,
                 };
                 if (align.Kind is InlineAlignKind.Top or InlineAlignKind.Bottom) deferred = true;
                 else
@@ -724,6 +730,16 @@ internal static class TextLines
             var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
             return style.FontSize * (fonts.Count == 0 ? 0.426 : fonts[0].XHeight1000 / 1000);
         }
+    }
+
+    /// <summary>Resolves <paramref name="text"/> to glyphs in <paramref name="style"/> exactly as paragraph text is,
+    /// so a form control's label or value prints with the supplied font chain.</summary>
+    internal static List<Glyph> ShapeText(string text, TextStyle style, int sourceOffset, PdfOptions options,
+        Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved)
+    {
+        var glyphs = new List<Glyph>(text.Length);
+        foreach (var rune in text.EnumerateRunes()) glyphs.Add(Resolve(rune.Value, style, sourceOffset, options, resolved));
+        return glyphs;
     }
 
     private static Glyph Resolve(int scalar, TextStyle style, int sourceOffset, PdfOptions options,

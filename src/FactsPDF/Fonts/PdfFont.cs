@@ -31,6 +31,8 @@ public sealed class PdfFont
     /// <summary>The line gap Chrome adds to ascent and descent for line-height:normal (hhea lineGap, or OS/2 typoLineGap with USE_TYPO_METRICS).</summary>
     internal double LineGap1000 { get; }
     internal double CapHeight1000 { get; }
+    /// <summary>OS/2 xAvgCharWidth, which Chrome sizes text fields by.</summary>
+    internal double AverageCharWidth1000 { get; }
     internal double XHeight1000 { get; }
     internal double XMin1000 { get; }
     internal double YMin1000 { get; }
@@ -80,6 +82,7 @@ public sealed class PdfFont
         { ascent = S16(os2, 68); descent = S16(os2, 70); lineGap = S16(os2, 72); }
         Need(ascent > 0 && descent <= 0, "Invalid vertical font metrics.");
         Ascent1000 = ascent * scale; Descent1000 = descent * scale; LineGap1000 = Math.Max(0, lineGap) * scale;
+        AverageCharWidth1000 = S16(os2, 2) * scale;
         CapHeight1000 = version >= 2 && os2.Length >= 90 && S16(os2, 88) > 0 ? S16(os2, 88) * scale : Ascent1000;
         if (sfnt.Contains("post")) ItalicAngle = unchecked((int)U32(sfnt.Table("post", 16), 4)) / 65536d;
         var longLoca = S16(head, 50); Need(longLoca is 0 or 1, "Unsupported loca representation.");

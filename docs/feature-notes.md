@@ -607,6 +607,21 @@ followed by `<script` (the double-escaped form, where a browser would not end th
 `</script>`) fails `FPDF1101` instead of guessing (`ScriptElementTests.cs`). `noscript` is dropped the
 same way (see the next section).
 
+### Form controls: button and text fields (source only)
+
+`button`, `input` and `input type=hidden` print as Chrome's native controls instead of failing `FPDF1102`.
+A control is an atomic inline box: a vector rounded rectangle (inset 0.5px, radius 2px) filled and stroked
+1px #767676, with the label, value or placeholder as ordinary text on top, sitting on the text baseline.
+Chrome's metrics (probed with DejaVu faces): a push button is 16px wider than its text, a text field's
+content box is `size * avg + (max - avg)` wide (`size` 20 by default, an invalid value falls back to 20), and both are 6px taller than one
+`line-height:normal` line. Button fill is #efefef, text-field fill white with a 0.75-alpha stroke, a placeholder #757575.
+Supported: `button` with text only, `input` types text, email, url, tel (and no or an unknown-empty type), submit, reset, button, hidden,
+with `value`, `placeholder`, `size`, `name` and the other attributes that change nothing on paper. Fails explicitly:
+other input types (`FPDF1103`), elements inside a button (`FPDF1101`), disabled and readonly, an empty button label,
+author width, height, padding, margin, border, background or display on a control (`FPDF1201`), a value wider than
+the field (`FPDF1302`), no supplied font (`FPDF1301`), and controls as flex or grid items (`FPDF1201`).
+`select`, `textarea`, `meter` and `progress` still fail `FPDF1102` (`FormControlTests.cs`).
+
 ### More HTML elements, printed as Chrome prints them (source only)
 
 Each element below was `FPDF1102` before. Every behaviour was probed in headless Chrome
