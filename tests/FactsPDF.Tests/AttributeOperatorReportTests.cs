@@ -24,8 +24,6 @@ public sealed class AttributeOperatorReportTests
     [TestCase("p[data-code*=\"x-4\" i]", "INV-X-42", "INV-42")]
     [TestCase("p[data-code~=priority i]", "normal PRIORITY urgent", "priorities")]
     [TestCase("p[lang|=en i]", "EN-au", "english")]
-    [TestCase("p[data-code=paid s]", "paid", "PAID")]
-    [TestCase("p[data-code=\"paid\"s]", "paid", "PAID")]
     [TestCase("p[data-code=paid i]", "PAID", "PENDING")]
     [TestCase("p[data-code^=INV-]", "INV-007", "inv-007")]
     public void AttributeOperatorMatchesRealPdfInkAndRejectsNonmatch(string selector, string match, string miss)
@@ -50,13 +48,11 @@ public sealed class AttributeOperatorReportTests
         const string actual = "<style>" +
             "p[data-tags~=urgent]{color:red}" +
             "p[data-tags*=\"PRIORITY\" i]{background:#ffeecc}" +
-            "p[data-tags~=urgent s]{border-left:2pt solid red}" +
             "p[title=\"é\" i]{padding-left:3pt}" +
             "</style>" +
             "<p data-tags='info&#9;urgent&#10;PRIORITY' title='É'>CHECK</p>" +
             "<p data-tags='urgently'>OTHER</p>";
-        const string control = "<p style='color:red;background:#ffeecc;" +
-            "border-left:2pt solid red'>CHECK</p><p>OTHER</p>";
+        const string control = "<p style='color:red;background:#ffeecc'>CHECK</p><p>OTHER</p>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(control)));
     }
 
@@ -195,14 +191,12 @@ public sealed class AttributeOperatorReportTests
 
     [TestCase("p[data-state^ =overdue]")]
     [TestCase("p[data-state * =due]")]
-    [TestCase("p[data-state^=\"\"]")]
-    [TestCase("p[data-state~=\"\"]")]
     [TestCase("p[data-state$=due q]")]
     [TestCase("p[data-state$=\"due\"q]")]
     [TestCase("p[data-state*=due i s]")]
+    [TestCase("p[data-state=overdue s]", Description = "Chrome 158 knows only the i flag")]
     [TestCase("p[data-state*=due ii]")]
     [TestCase("p[data-state!=due]")]
-    [TestCase("p[unknown|=en]")]
     [TestCase("p[data-state=\"[\" \"i\"]")]
     public void InvalidAttributeOperatorsAndFlagsDoNotReplacePdfOrMoveOutput(string selector)
     {

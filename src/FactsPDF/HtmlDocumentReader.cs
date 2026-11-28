@@ -674,6 +674,9 @@ internal static class HtmlDocumentReader
                 // An event handler content attribute only runs script on an event; FactsPDF runs no
                 // script (see script elements) and a printed page receives no events, so it changes nothing.
                 else if (attribute.Length > 2 && attribute.StartsWith("on", StringComparison.Ordinal)) { }
+                // A custom attribute (one neither HTML nor SVG defines) and the global attributes that only affect
+                // interaction, editing or accessibility print nothing; they are kept for attribute selectors.
+                else if (HtmlAttributeNames.Ignored(attribute)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
             }
             if (name == "a")

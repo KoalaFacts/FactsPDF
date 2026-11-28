@@ -17,7 +17,7 @@ internal sealed class HtmlElementPositions
 
     private struct Slot
     {
-        internal int Index, Count, TypeIndex, TypeCount, Previous;
+        internal int Index, Count, TypeIndex, TypeCount, Previous, Next, FirstChild, Parent;
         internal bool Empty;
     }
 
@@ -34,10 +34,20 @@ internal sealed class HtmlElementPositions
         this.tokens = tokens;
         this.dropped = dropped;
         slots = new Slot[tokens.Count + (dropped?.Count ?? 0)];
+        for (var i = 0; i < slots.Length; i++) slots[i].FirstChild = -1;
     }
 
     /// <summary>The node of the element sibling just before this one, or -1 for a first child.</summary>
     internal int PreviousSibling(int node) => slots[node].Previous;
+
+    /// <summary>The node of the element sibling just after this one, or -1 for a last child.</summary>
+    internal int NextSibling(int node) => slots[node].Next;
+
+    /// <summary>The node of the element's first child element, or -1 when it has none.</summary>
+    internal int FirstChild(int node) => slots[node].FirstChild;
+
+    /// <summary>The node of the element's parent, or -1 for the document's root element.</summary>
+    internal int Parent(int node) => slots[node].Parent;
 
     /// <summary>The element a node stands for: a dropped script or template keeps its attributes, so
     /// a selector can test it as a sibling.</summary>
@@ -96,7 +106,10 @@ internal sealed class HtmlElementPositions
                 ref var slot = ref slots[token];
                 slot.Index = k - frame.ChildStart + 1; slot.Count = count; slot.TypeIndex = typeIndex;
                 slot.Previous = k > frame.ChildStart ? children[k - 1].Token : -1;
+                slot.Next = k + 1 < children.Count ? children[k + 1].Token : -1;
+                slot.Parent = frame.Token;
             }
+            slots[frame.Token].FirstChild = count > 0 ? children[frame.ChildStart].Token : -1;
             for (var k = frame.ChildStart; k < children.Count; k++)
                 slots[children[k].Token].TypeCount = typeCounts[children[k].Name];
             slots[frame.Token].Empty = !content[^1];
@@ -154,7 +167,8 @@ internal sealed class HtmlElementPositions
         for (var k = 0; k < rootCount; k++)
         {
             var token = children[k].Token;
-            slots[token] = slots[token] with { Index = k + 1, Count = rootCount, TypeIndex = k + 1, TypeCount = rootCount, Previous = k > 0 ? children[k - 1].Token : -1 };
+            slots[token] = slots[token] with { Index = k + 1, Count = rootCount, TypeIndex = k + 1, TypeCount = rootCount,
+                Previous = k > 0 ? children[k - 1].Token : -1, Next = k + 1 < rootCount ? children[k + 1].Token : -1, Parent = -1 };
         }
         return positions;
     }

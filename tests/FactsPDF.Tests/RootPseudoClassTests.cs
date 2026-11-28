@@ -109,12 +109,11 @@ public sealed class RootPseudoClassTests
             Is.EqualTo(Pdf(Document("body > p:first-of-type{color:#1f4e79}"))));
     }
 
-    [TestCase(":hover{color:red}", "Unsupported pseudo-class ':hover'.")]
-    [TestCase("::first-line{color:red}", "Pseudo-elements are not supported.")]
-    [TestCase(":root::first-line{color:red}", "Pseudo-elements are not supported.")]
-    [TestCase(": root{color:red}", "Expected a pseudo-class name adjacent to ':'.")]
-    [TestCase(":root(){color:red}", "Unsupported pseudo-class ':root()'.")]
-    [TestCase(":rooted{color:red}", "Unsupported pseudo-class ':rooted'.")]
+    [TestCase("::first-line{color:red}", "The ::first-line pseudo-element is not supported")]
+    [TestCase(":root::first-line{color:red}", "The ::first-line pseudo-element is not supported")]
+    [TestCase(": root{color:red}", "Expected a pseudo-class name after ':'.")]
+    [TestCase(":root(){color:red}", "Unknown pseudo-class ':root()'.")]
+    [TestCase(":rooted{color:red}", "Unknown pseudo-class ':rooted'.")]
     public void OtherPseudoClassesStillFail(string css, string message)
     {
         var error = Assert.Throws<FactsPdfException>(() => Pdf(Document(css)))!;

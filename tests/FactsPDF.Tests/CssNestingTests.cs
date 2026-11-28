@@ -107,20 +107,33 @@ public sealed class CssNestingTests
             Is.EqualTo(FactsPDF.Pdf.Write().WithPage(p => p.Size(300, 400).Margin(20)).ToBytes(Doc(".a .b{color:#c00} .a .d{color:#080}", Body))));
     }
 
-    [TestCase("div > .b{.x &{color:red}}", Description = "a parent with combinators outside the first compound")]
-    [TestCase("div > .b{& + &{color:red}}")]
-    [TestCase("div{span&{color:red}}", Description = "a type selector before the nesting selector")]
-    [TestCase(".a{&:not(&){color:red}}", Description = "the nesting selector inside :not()")]
-    [TestCase("div{&p{color:red}}")]
+    // A nesting selector that cannot be merged into one compound stands for the parent as :is() does, so a parent
+    // with combinators works anywhere, & + & relates two parents, and & mixes with a type selector or :not().
+    [TestCase(".b{.a > &{color:#c00}}", ".a > .b{color:#c00}")]
+    [TestCase("div > .b{.a &{color:#c00}}", ".a :is(div > .b){color:#c00}", Description = "a parent with combinators outside the first compound")]
+    [TestCase("div > .b{& + &{color:#c00}}", ":is(div > .b) + :is(div > .b){color:#c00}")]
+    [TestCase(".b{& ~ .c &{color:#c00}}", ".b ~ .c .b{color:#c00}")]
+    [TestCase("div{span&{color:#c00}}", "span:is(div){color:#c00}", Description = "a type selector before the nesting selector")]
+    [TestCase("span{span&{color:#c00}}", "span{color:#c00}")]
+    [TestCase(".a{&:not(&){color:#c00}}", ".a:not(.a){color:#c00}", Description = "the nesting selector inside :not()")]
+    [TestCase(".a, .d{:not(&) p{color:#c00}}", ":not(:is(.a, .d)) p{color:#c00}")]
+    [TestCase(".a,.d{& span, .e{color:#c00}}", ":is(.a,.d) span, :is(.a,.d) .e{color:#c00}")]
+    [TestCase(".c, .e{.a &{color:#c00}}", ".a :is(.c, .e){color:#c00}", Description = "a parent list outside the first compound")]
+    public void NestingSelectorsThatCannotBeMergedBecomeIs(string nested, string flat)
+        => Assert.That(Pdf(Doc(nested, Body)), Is.EqualTo(Pdf(Doc(flat, Body))));
+
+    [TestCase("div{&p{color:red}}", Description = "a type selector after the nesting selector is invalid")]
     [TestCase("p::before{.x{color:red}}", Description = "a nested rule under a pseudo-element")]
-    public void FormsThatNeedComplexIsMatchingFailExplicitly(string css)
+    public void InvalidNestedFormsFailExplicitly(string css)
         => Assert.That(Assert.Throws<FactsPdfException>(() => Pdf(Doc(css, Body)))!.Code, Is.EqualTo("FPDF1203"));
 
     [Test]
-    public void ManyNestingSelectorsAreBoundedByTheSelectorBudget()
+    public void ManyNestingSelectorsOfAParentListStayOneSelector()
     {
-        var css = ".a,.b,.c,.d,.e,.f,.g,.h{& & & & & & & {color:red}}";
-        Assert.That(Assert.Throws<FactsPdfException>(() => Pdf(Doc(css, Body)))!.Code, Is.EqualTo("FPDF1205"));
+        // Eight parents used seven times would expand to 8^7 flat selectors; as :is() each & costs one compound.
+        var nested = ".a,.b,.c,.d,.e,.f,.g,.h{& & & & & & & {color:#c00}}";
+        var flat = ":is(.a,.b,.c,.d,.e,.f,.g,.h) :is(.a,.b,.c,.d,.e,.f,.g,.h) :is(.a,.b,.c,.d,.e,.f,.g,.h) :is(.a,.b,.c,.d,.e,.f,.g,.h) :is(.a,.b,.c,.d,.e,.f,.g,.h) :is(.a,.b,.c,.d,.e,.f,.g,.h) :is(.a,.b,.c,.d,.e,.f,.g,.h){color:#c00}";
+        Assert.That(Pdf(Doc(nested, Body)), Is.EqualTo(Pdf(Doc(flat, Body))));
     }
 
     [Test]

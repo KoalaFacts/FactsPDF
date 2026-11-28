@@ -3,6 +3,10 @@ namespace FactsPDF;
 internal sealed class CssBudget(PdfOptions options, CancellationToken token)
 {
     private long characters, selectors, declarations, work;
+    private Dictionary<(int Pseudo, int Node), bool>? pseudoResults;
+    /// <summary>Answers of pseudo-classes that search the document tree (:has(), "of S"), by pseudo-class and element,
+    /// so descendant selectors do not repeat a search for every element below an ancestor.</summary>
+    internal Dictionary<(int Pseudo, int Node), bool> PseudoResults => pseudoResults ??= [];
     internal CancellationToken Token => token;
     /// <summary>The non-strict conversion's warnings; null in strict mode, where every rejected construct fails.</summary>
     internal CssWarnings? Warnings => options.CssWarnings;

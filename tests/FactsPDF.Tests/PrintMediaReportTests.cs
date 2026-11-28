@@ -120,7 +120,7 @@ public sealed class PrintMediaReportTests
     [TestCase("@media print and (color){p{color:red}}", "FPDF1204")]
     [TestCase("@media print;", "FPDF1204")]
     [TestCase("@media print{ @supports(display:grid){p{color:red}} }", "FPDF1204")]
-    [TestCase("@media print{color:red; p{color:blue}}", "FPDF1204")]
+    [TestCase("@media print{color:red; p{color:blue}}", "FPDF1203", Description = "a loose declaration starts a rule whose invalid selector a browser drops with the p rule")]
     [TestCase("@supports(display:grid){p{color:red}}", "FPDF1204")]
     [TestCase("@import 'https://example.invalid/a.css';", "FPDF1204")]
     [TestCase("@media print{.unmatched{padding:-1pt}}", "FPDF1202")]

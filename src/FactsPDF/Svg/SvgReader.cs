@@ -151,7 +151,8 @@ internal static class SvgReader
             if (name is "title" or "desc")
             {
                 foreach (var (attribute, _) in token.Attributes!)
-                    if (!(attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal) || EventHandler(attribute)))
+                    if (!(attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal) || EventHandler(attribute)
+                        || HtmlAttributeNames.Ignored(attribute)))
                         throw new FactsPdfException("FPDF1103", $"SVG attribute '{attribute}' is not supported on '{name}'.", token.Offset);
                 if (!token.SelfClosing) { frames.Add(new(name, top.State, t, token.Offset, null)); metadata++; }
                 continue;
@@ -267,7 +268,7 @@ internal static class SvgReader
         foreach (var (attribute, value) in token.Attributes!)
         {
             if (attribute is "id" or "class" or "style" or "lang" or "xml:space" || attribute.StartsWith("data-", StringComparison.Ordinal)
-                || Accessibility(attribute))
+                || Accessibility(attribute) || HtmlAttributeNames.Ignored(attribute))
                 continue;
             if (Shape(name) && GeometryAttribute(name, attribute))
                 continue;

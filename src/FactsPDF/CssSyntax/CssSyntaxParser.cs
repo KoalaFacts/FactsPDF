@@ -75,7 +75,7 @@ internal static class CssSyntaxParser
                 // prelude. Do not discard it and accidentally accept the next
                 // selector as if the stray token had never existed.
                 CssRuleNode? rule = Current.Kind == CssSyntaxTokenKind.AtKeyword
-                    ? ReadAtRule() : ReadQualifiedRule();
+                    ? ReadAtRule(ruleList: true) : ReadQualifiedRule();
                 if (rule is not null) rules.Add(rule);
             }
             return new(rules.ToArray(), [], diagnostics.ToArray());
@@ -112,7 +112,7 @@ internal static class CssSyntaxParser
                 { Take(); continue; }
                 if (Current.Kind == CssSyntaxTokenKind.AtKeyword)
                 {
-                    var at = ReadAtRule(nested: !inline);
+                    var at = ReadAtRule(nested: !inline, ruleList: false);
                     if (inline) Error("CSS at-rule is not a declaration.", at.Span);
                     else result.Add(at);
                     continue;
@@ -141,6 +141,23 @@ internal static class CssSyntaxParser
                     var nested = ReadQualifiedRule(nested: true);
                     if (nested is not null) result.Add(nested);
                 }
+            }
+            return result;
+        }
+
+        // The contents of a conditional group rule outside a style rule: at-rules and qualified rules, the block
+        // ending at its closing brace. A semicolon is part of a qualified rule's prelude, not a separator.
+        private List<CssSyntaxContent> ReadRuleList()
+        {
+            var result = new List<CssSyntaxContent>();
+            while (!End)
+            {
+                limits.Cancellation.ThrowIfCancellationRequested();
+                if (Current.Kind == CssSyntaxTokenKind.CloseBrace) break;
+                if (Current.Kind == CssSyntaxTokenKind.Whitespace) { Take(); continue; }
+                if (Current.Kind == CssSyntaxTokenKind.AtKeyword) { result.Add(ReadAtRule(nested: true, ruleList: true)); continue; }
+                var rule = ReadQualifiedRule(inBlock: true);
+                if (rule is not null) result.Add(rule);
             }
             return result;
         }
@@ -175,7 +192,14 @@ internal static class CssSyntaxParser
             return false;
         }
 
-        private CssAtRuleNode ReadAtRule(bool nested = false)
+        // Conditional group rules whose block holds a list of rules. Where they stand in a stylesheet or in another
+        // such block, that block is read as a rule list (CSS Syntax "consume a list of rules"): a loose declaration
+        // there starts a qualified rule whose prelude runs to the next block, which an invalid selector drops with it.
+        // Inside a style rule the block holds declarations and nested rules instead (CSS Nesting).
+        private static bool HoldsRuleList(string name) => name.ToLowerInvariant() is "media" or "supports" or "layer"
+            or "container" or "scope" or "starting-style" or "document" or "-moz-document";
+
+        private CssAtRuleNode ReadAtRule(bool nested = false, bool ruleList = false)
         {
             var beginning = Take();
             var prelude = new List<CssSyntaxComponent>();
@@ -199,7 +223,7 @@ internal static class CssSyntaxParser
                         // of an unknown rule belongs to the semantic adapter.
                         // Preserve a raw token view as diagnostic provenance.
                         var beginningOfBlock = position;
-                        contents = ReadBlockContents().ToArray();
+                        contents = (ruleList && HoldsRuleList(beginning.Value) ? ReadRuleList() : ReadBlockContents()).ToArray();
                         rawBlock = tokens.Skip(beginningOfBlock).Take(position - beginningOfBlock)
                             .Select(x => (CssSyntaxComponent)new CssTokenComponent(x)).ToArray();
                         if (Current.Kind == CssSyntaxTokenKind.CloseBrace) Take();
@@ -214,7 +238,8 @@ internal static class CssSyntaxParser
             return new(beginning.Value, prelude.ToArray(), contents, Range(beginning.Span.Start), rawBlock);
         }
 
-        private CssQualifiedRuleNode? ReadQualifiedRule(bool nested = false)
+        // inBlock: the rule is in a rule list inside a block, whose closing brace ends the prelude (and the list).
+        private CssQualifiedRuleNode? ReadQualifiedRule(bool nested = false, bool inBlock = false)
         {
             var beginning = Current;
             var prelude = new List<CssSyntaxComponent>();
@@ -224,7 +249,7 @@ internal static class CssSyntaxParser
                 if (Current.Kind == CssSyntaxTokenKind.CloseBrace)
                 {
                     Error("Unexpected closing brace in a qualified rule.", Current.Span);
-                    if (nested) return null; // parent block consumes its own closer
+                    if (nested || inBlock) return null; // parent block consumes its own closer
                     prelude.Add(ReadComponent()); // top-level: invalid selector prelude
                     continue;
                 }

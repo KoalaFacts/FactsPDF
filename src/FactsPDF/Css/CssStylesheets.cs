@@ -328,8 +328,7 @@ internal sealed class CssStylesheets
                 if (media is not ("" or "all" or "print")) throw new FactsPdfException("FPDF1204", "Only empty/all/print style media are supported.", token.Offset);
             }
             // dir="ltr" is accepted on every element, as in the document reader (R5ci).
-            else if (!(name is "id" or "class" or "lang" or "title" || name.StartsWith("data-", StringComparison.Ordinal)
-                || name.Length > 2 && name.StartsWith("on", StringComparison.Ordinal)
+            else if (!(name is "id" or "class" or "lang" or "title" || HtmlAttributeNames.Ignored(name)
                 || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
@@ -637,8 +636,47 @@ internal sealed class CssStylesheets
         return result;
     }
 
+    // The @namespace declarations of the style sheet being parsed, and whether one may still be written: it
+    // must come before every rule except @charset, @import, @layer statements and other @namespace rules.
+    private CssNamespaces? namespaces;
+    private bool namespacesOpen;
+
     private void ParseRules(IReadOnlyList<CssRuleNode> rules)
-        => ParseBlock(rules, parents: null, layer: null);
+    {
+        namespaces = null;
+        namespacesOpen = true;
+        foreach (var rule in rules)
+        {
+            budget.Token.ThrowIfCancellationRequested();
+            if (rule is CssAtRuleNode at && at.Name.Equals("namespace", StringComparison.OrdinalIgnoreCase))
+            {
+                DeclareNamespace(at);
+                continue;
+            }
+            if (namespacesOpen && !(rule is CssAtRuleNode preamble && (preamble.Name.Equals("charset", StringComparison.OrdinalIgnoreCase)
+                    || preamble.Name.Equals("import", StringComparison.OrdinalIgnoreCase)
+                    || preamble.Name.Equals("layer", StringComparison.OrdinalIgnoreCase) && preamble.Contents is null)))
+                namespacesOpen = false;
+            ParseItem(rule, parents: null, layer: null);
+        }
+    }
+
+    // An invalid or late @namespace rule is dropped by a browser (FPDF1204 in strict mode).
+    private void DeclareNamespace(CssAtRuleNode at)
+    {
+        if (CssNamespaces.TryDeclare(at, namespacesOpen, namespaces ??= new())) return;
+        var error = new FactsPdfException("FPDF1204",
+            "@namespace must precede every rule but @charset, @import and @layer statements, take an optional prefix and one URL or string, and end with a semicolon.", at.Span.Start);
+        if (budget.Warnings is { } warnings) { warnings.Add(error); return; }
+        throw error;
+    }
+
+    private void ParseItem(CssSyntaxContent item, CssSelector[]? parents, Layer? layer)
+    {
+        if (item is CssAtRuleNode at) ParseAtRule(at, parents, layer);
+        else if (item is CssQualifiedRuleNode qualified) ParseStyleRule(qualified, parents, layer);
+        else throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", item.Span.Start);
+    }
 
     // The rules of a stylesheet or of a conditional group rule (parents null), or the contents of a style
     // rule or of a group rule nested in one (parents: the selectors of the enclosing style rule, which the
@@ -659,9 +697,7 @@ internal sealed class CssStylesheets
                 continue;
             }
             if (declarations is { Count: > 0 }) { AddStyleRule(parents!, declarations, layer); declarations = null; }
-            if (item is CssAtRuleNode at) ParseAtRule(at, parents, layer);
-            else if (item is CssQualifiedRuleNode qualified) ParseStyleRule(qualified, parents, layer);
-            else throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", item.Span.Start);
+            ParseItem(item, parents, layer);
         }
         if (declarations is { Count: > 0 }) AddStyleRule(parents!, declarations, layer);
     }
@@ -717,10 +753,11 @@ internal sealed class CssStylesheets
         var prelude = at.Prelude
             .Where(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace })
             .ToArray();
-        if (prelude.Length != 1 || prelude[0] is not CssTokenComponent
+        // An empty media query list matches every medium, like all.
+        if (prelude.Length != 0 && (prelude.Length != 1 || prelude[0] is not CssTokenComponent
             { Token.Kind: CssSyntaxTokenKind.Ident } medium ||
             !(medium.Token.Value.Equals("print", StringComparison.OrdinalIgnoreCase)
-              || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase)))
+              || medium.Token.Value.Equals("all", StringComparison.OrdinalIgnoreCase))))
             throw new FactsPdfException("FPDF1204", "Only a single print or all media type is supported.", at.Span.Start);
         var contents = WithoutUnknownAtRules(at.Contents, "Nested media, other at-rules and loose declarations are unsupported.", "FPDF1204", at.Span.Start);
         // A print stylesheet may carry @keyframes, which is validated and dropped, @page, which compiles
@@ -739,10 +776,10 @@ internal sealed class CssStylesheets
     private void ParseStyleRule(CssQualifiedRuleNode rule, CssSelector[]? parents, Layer? layer)
     {
         CssSelector[] selectors;
-        try { selectors = CssSyntaxAdapter.CompileSelectors(rule.Prelude, budget, rule.Span.Start, nested: parents is not null); }
+        try { selectors = CssSyntaxAdapter.CompileSelectors(rule.Prelude, budget, rule.Span.Start, nested: parents is not null, namespaces); }
         // An invalid selector list makes a browser drop the whole style rule, declarations included.
         catch (FactsPdfException error) when (budget.Warnings is { } warnings && error.Code == "FPDF1203"
-            && CssSpecValidity.InvalidSelectorList(rule.Prelude))
+            && CssSelectorParser.IsInvalid(error))
         {
             warnings.Add(error);
             return;

@@ -72,6 +72,12 @@ public sealed class NonStrictCssTests
     [TestCase("@media print{@frobnicate;p{color:navy}}", "@media print{p{color:navy}}", Description = "unknown at-rule inside @media")]
     [TestCase("p{color:navy;@frobnicate;font-size:14pt}", "p{color:navy;font-size:14pt}", Description = "unknown at-rule inside a style rule")]
     [TestCase("@keyframes none{from{color:red}}p{color:navy}", "p{color:navy}", Description = "keyframes named none")]
+    [TestCase("@media print{color:red;p{color:red}h1{color:navy}}", "@media print{h1{color:navy}}", Description = "a loose declaration in @media starts a rule that the following block completes: the p rule goes with it")]
+    [TestCase("@media print{p{color:navy}color:red;h1{color:red}}", "@media print{p{color:navy}}", Description = "a loose declaration after a rule drops the next rule")]
+    [TestCase("@media print{p{color:navy}color:red}", "@media print{p{color:navy}}", Description = "a loose declaration at the end of @media")]
+    [TestCase("@layer a{color:red;p{color:red}h1{color:navy}}", "@layer a{h1{color:navy}}", Description = "the same inside @layer")]
+    [TestCase("@media print{;p{color:red}h1{color:navy}}", "@media print{h1{color:navy}}", Description = "a leading semicolon belongs to the next rule's prelude")]
+    [TestCase("@media print{@media print{color:red;p{color:red}h1{color:navy}}}", "@media print{@media print{h1{color:navy}}}", Description = "nested @media blocks")]
     public void InvalidCssIsDroppedLikeABrowserAndReportedWithTheStrictError(string css, string withoutIt)
     {
         var html = Document(css);
@@ -138,13 +144,11 @@ public sealed class NonStrictCssTests
     [TestCase("p{grid-template-areas:'a'}")]
     [TestCase("p{background:url(x.png)}")]
     [TestCase("div{display:var(--missing, initial)}", "<div>x</div>")]
-    [TestCase("p:hover{color:red}")]
     [TestCase("p::first-line{color:red}")]
     [TestCase("@font-face{font-family:x}")]
     [TestCase("@page:first{margin:0}")]
     [TestCase("@import url(x.css);")]
     [TestCase("@media screen{p{color:red}}")]
-    [TestCase("@media print{color:red}")]
     [TestCase("p{display:var(--missing)}")]
     [TestCase(":root{--d:flex}p{display:var(--d)}")]
     [TestCase("", "<style media='screen'>p{color:red}</style><p>x</p>", Description = "style media other than print or all")]
@@ -298,24 +302,35 @@ public sealed class NonStrictCssTests
             Is.EqualTo(invalid), $"{name}: {value}");
     }
 
-    [TestCase("p..a", true)]
-    [TestCase("p > > a", true)]
-    [TestCase("p:foo", true)]
-    [TestCase("p::foo", true)]
-    [TestCase("p::before span", true)]
-    [TestCase("[a=b x]", true)]
-    [TestCase("p:first", true, Description = "page pseudo-class outside @page")]
-    [TestCase("p:hover", false)]
-    [TestCase("p::-webkit-scrollbar", false)]
-    [TestCase("ns|p", false, Description = "namespace prefixes are not examined")]
-    [TestCase("p:is(:foo)", false, Description = "forgiving arguments are not examined")]
-    [TestCase("[a=\"b\" s]", false)]
-    public void SelectorVerdicts(string selector, bool invalid)
+    [TestCase("p..a", "invalid")]
+    [TestCase("p > > a", "invalid")]
+    [TestCase("p:foo", "invalid")]
+    [TestCase("p::foo", "invalid")]
+    [TestCase("p::before span", "invalid")]
+    [TestCase("[a=b x]", "invalid")]
+    [TestCase("[a=\"b\" s]", "invalid", Description = "Chrome 158 knows only the i flag")]
+    [TestCase("p:first", "invalid", Description = "page pseudo-class outside @page")]
+    [TestCase("ns|p", "invalid", Description = "undeclared namespace prefix")]
+    [TestCase("p:not()", "invalid")]
+    [TestCase("p:has(:has(a))", "invalid")]
+    [TestCase("p:lang(en, fr)", "invalid", Description = "Chrome 158 takes one identifier")]
+    [TestCase("p:hover", "valid")]
+    [TestCase("p:is(:foo)", "valid", Description = "a forgiving list drops what it cannot parse")]
+    [TestCase("p:is()", "valid")]
+    [TestCase("p:nth-child(2 of .a, b)", "valid")]
+    [TestCase("*|p", "valid")]
+    [TestCase("p::-webkit-scrollbar", "unsupported")]
+    [TestCase("p::selection", "unsupported")]
+    public void SelectorVerdicts(string selector, string verdict)
     {
         var limits = new CssSyntaxLimits();
         var result = CssSyntaxParser.ParseStylesheet(CssSourceText.Create(selector + "{}", 0, limits), limits);
         var rule = (CssQualifiedRuleNode)result.Rules.Single();
-        Assert.That(CssSpecValidity.InvalidSelectorList(rule.Prelude), Is.EqualTo(invalid), selector);
+        var budget = new CssBudget(new PdfOptions(), CancellationToken.None);
+        var outcome = "valid";
+        try { CssSelectorParser.Compile(rule.Prelude, budget, 0, nested: false, namespaces: null); }
+        catch (FactsPdfException error) { Assert.That(error.Code, Is.EqualTo("FPDF1203")); outcome = CssSelectorParser.IsInvalid(error) ? "invalid" : "unsupported"; }
+        Assert.That(outcome, Is.EqualTo(verdict), selector);
     }
 
     private static (int Exit, string[] Lines, byte[] Output) Cli(string html, params string[] extra)

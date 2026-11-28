@@ -110,7 +110,6 @@ public sealed class SiblingCombinatorTests
     [TestCase("div ~~ p{color:red}")]
     [TestCase("div + > p{color:red}")]
     [TestCase("div > ~ p{color:red}")]
-    [TestCase("p:not(a + b){color:red}")]
     public void MalformedCombinatorSequencesStayInvalid(string css)
     {
         var ex = Assert.Throws<FactsPdfException>(() => Pdf(Doc(css, "<p>x</p>")))!;

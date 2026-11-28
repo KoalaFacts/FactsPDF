@@ -122,12 +122,10 @@ public sealed class AttributeSelectorReportTests
     }
 
     [TestCase("p[data-state^ =paid]")]
-    [TestCase("p[data-state*=\"\"]")]
     [TestCase("p[data-state=paid q]")]
     [TestCase("p[data-state~=paid ii]")]
     [TestCase("p[data-state \"=\" paid]")]
     [TestCase("p[data-state \"]\"\"[\"title]")]
-    [TestCase("p[unknown]")]
     public void MalformedOperatorsFlagsAndAttributesRejectWithoutReplacingOutput(string selector)
     {
         using var output = new MemoryStream();

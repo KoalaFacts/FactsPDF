@@ -76,11 +76,17 @@ public sealed class HtmlSyntaxLeniencyTests
     [TestCase("<p on>A</p>")]
     [TestCase("<p once='x'>A</p>")]
     [TestCase("<p onclick>A</p>")]
-    public void OnlyNamesStartingWithOnAndAtLeastOneMoreLetterAreEventHandlers(string html)
+    [TestCase("<p foo-bar='1' a.b='2' xlink:x='3'>A</p>")]
+    public void EventHandlersAndCustomAttributesChangeNothing(string html)
     {
-        // "on" alone and names that do not start with it stay unsupported; every longer name is a handler.
-        var handler = html.Contains("once", StringComparison.Ordinal) || html.Contains("onclick", StringComparison.Ordinal);
-        if (handler) Assert.DoesNotThrow(() => Pdf(html));
-        else Assert.That(Assert.Throws<FactsPdfException>(() => Pdf(html))!.Code, Is.EqualTo("FPDF1103"));
+        // An event handler runs script on an event; any other name HTML does not define is a custom attribute.
+        // Neither prints anything, so each renders as the bare paragraph.
+        Assert.That(Pdf(html), Is.EqualTo(Pdf("<p>A</p>")));
     }
+
+    [TestCase("<p align='center'>A</p>", Description = "a presentational attribute HTML defines")]
+    [TestCase("<p popover>A</p>", Description = "popover hides the element until it is opened")]
+    [TestCase("<p border='1'>A</p>")]
+    public void DefinedAttributesThatChangeRenderingStillFail(string html)
+        => Assert.That(Assert.Throws<FactsPdfException>(() => Pdf(html))!.Code, Is.EqualTo("FPDF1103"));
 }

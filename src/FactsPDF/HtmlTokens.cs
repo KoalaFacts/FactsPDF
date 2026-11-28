@@ -108,7 +108,7 @@ internal static class HtmlTokens
                     if (html[i] == '/' && i + 1 < html.Length && html[i + 1] == '>')
                     { selfClosing = true; i++; break; }
                     var attrStart = i;
-                    while (i < html.Length && NameCharacter(html[i])) i++;
+                    while (i < html.Length && AttributeNameCharacter(html[i])) i++;
                     if (i == attrStart) throw Invalid("Malformed attribute.", i);
                     var attribute = LowerName(html, attrStart, i);
                     SkipSpace(html, ref i);
@@ -355,8 +355,18 @@ internal static class HtmlTokens
         "property", "rel", "rowspan", "src", "start", "target", "type", "value", "width",
     ]);
 
+    // HTML lower-cases the ASCII letters of a name and nothing else.
     private static string LowerName(string html, int start, int end) =>
-        KnownNames.TryGetValue(html.AsSpan(start, end - start), out var known) ? known : html[start..end].ToLowerInvariant();
+        KnownNames.TryGetValue(html.AsSpan(start, end - start), out var known) ? known : LowerAscii(html.AsSpan(start, end - start));
+
+    private static string LowerAscii(ReadOnlySpan<char> text)
+    {
+        if (text.IndexOfAnyInRange('A', 'Z') < 0) return text.ToString();
+        return string.Create(text.Length, text.ToString(), static (buffer, source) =>
+        {
+            for (var i = 0; i < source.Length; i++) buffer[i] = source[i] is >= 'A' and <= 'Z' ? (char)(source[i] + 32) : source[i];
+        });
+    }
 
     public static bool Space(char ch) => ch is ' ' or '\t' or '\r' or '\n' or '\f';
 
@@ -369,6 +379,11 @@ internal static class HtmlTokens
         return true;
     }
     private static bool NameCharacter(char ch) => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_' or ':';
+
+    // An attribute name is any run of characters but white space, '/', '>', '=', quotes, '<' and controls, so
+    // an attribute of any name (data-x, aria-label, xlink:href, a.b, non-ASCII names) is kept for attribute selectors.
+    private static bool AttributeNameCharacter(char ch)
+        => !(Space(ch) || ch is '/' or '>' or '=' or '"' or '\'' or '<' || char.IsControl(ch));
     private static void SkipSpace(string html, ref int i) { while (i < html.Length && Space(html[i])) i++; }
     private static FactsPdfException Invalid(string message, int offset) => new("FPDF1101", message, offset);
 }
