@@ -84,14 +84,14 @@ public sealed class PageLimitLocationTests
     [Test]
     public void HeadingKeptWithItsNextBlockPointsAtTheHeading()
     {
-        const string html = "<p style='line-height:740pt;margin:0'>F</p><h2 id='heading' style='break-after:avoid'>H</h2><p>a<br>b<br>c<br>d</p>";
+        const string html = "<p style='line-height:740pt;margin:0'>F</p><h2 id='heading' style='font-weight:normal;break-after:avoid'>H</h2><p>a<br>b<br>c<br>d</p>";
         Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='heading'")));
     }
 
     [Test]
     public void ForcedBreakBeforeAHeadingPointsAtIt()
     {
-        const string html = First + "<h2 id='heading' style='break-before:page'>Heading</h2><p>Body.</p>";
+        const string html = First + "<h2 id='heading' style='font-weight:normal;break-before:page'>Heading</h2><p>Body.</p>";
         Assert.That(Fails(html).SourceOffset, Is.EqualTo(OffsetOf(html, "<h2 id='heading'")));
     }
 

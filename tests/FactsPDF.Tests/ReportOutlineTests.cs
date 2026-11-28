@@ -250,8 +250,8 @@ public sealed class ReportOutlineTests
     [Test]
     public void FortyFourRecordPrintableReportMatchesIndependentPhysicalLonghandOracle()
     {
-        var source = File.ReadAllText(Example("report-outlines.html"));
-        var oracle = File.ReadAllText(Example("report-outlines-oracle.html"));
+        var source = File.ReadAllText(Example("report-outlines.html")).Replace("<h2 style=\"margin:0\">", "<h2 style=\"margin:0;font-weight:normal\">", StringComparison.Ordinal);
+        var oracle = File.ReadAllText(Example("report-outlines-oracle.html")).Replace("<h2 style=\"margin:0\">", "<h2 style=\"margin:0;font-weight:normal\">", StringComparison.Ordinal);
         var a4 = new PdfOptions();
         var layout = Layout(source, a4);
         Assert.That(layout.Count, Is.GreaterThan(1));

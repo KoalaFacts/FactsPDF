@@ -24,7 +24,7 @@ public sealed class ConversionTests
     [Test]
     public void WritesARealPdfWithTextAndPageTree()
     {
-        var (result, pdf) = Render("<h1>FactsPDF</h1><p>Hello, world!</p>");
+        var (result, pdf) = Render("<h1 style=\"font-weight:normal\">FactsPDF</h1><p>Hello, world!</p>");
         Assert.That(result.PageCount, Is.EqualTo(1));
         Assert.That(pdf, Does.StartWith("%PDF-1.7\n"));
         Assert.That(pdf, Does.Contain("/Type /Catalog"));

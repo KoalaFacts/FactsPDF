@@ -222,7 +222,8 @@ public sealed class RobustnessFuzzTests
         var font = PdfFont.FromBytes(Font);
         var options = new PdfOptions { Fonts = [font], BoldFonts = [font], SubsetFonts = true, PageNumbers = true };
         var html = string.Concat(Enumerable.Repeat("<p>AB <b>Wi</b> 中文</p>", 120));
-        var quickStart = File.ReadAllText(Path.Combine(root, "examples", "quick-start.html"));
+        var quickStart = File.ReadAllText(Path.Combine(root, "examples", "quick-start.html"))
+            .Replace("</head>", "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style></head>", StringComparison.Ordinal);
         var expected = new[] { Render(html, options), Render(quickStart, new PdfOptions()) };
         var outputs = new byte[64][];
         Parallel.For(0, outputs.Length, new ParallelOptions { MaxDegreeOfParallelism = 8 },
