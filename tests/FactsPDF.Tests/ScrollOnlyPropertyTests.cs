@@ -102,7 +102,7 @@ public sealed class ScrollOnlyPropertyTests
     [TestCase("scroll-margin:1e-999", "scroll-margin supports only one to four lengths")]
     [TestCase("scroll-margin-top:-1e-999", "scroll-margin-top supports only one length")]
     [TestCase("scroll-padding-top:-1px", "scroll-padding-top supports only one of auto or a non-negative length or percentage")]
-    [TestCase("scroll-padding:calc(1px + 2px)", "scroll-padding supports only one to four of auto or a non-negative length or percentage")]
+    [TestCase("scroll-padding:env(x)", "scroll-padding supports only one to four of auto or a non-negative length or percentage")]
     [TestCase("scroll-padding-block:1deg", "scroll-padding-block supports only one or two of auto")]
     public void InvalidScrollOffsetsFail(string declaration, string message)
     {

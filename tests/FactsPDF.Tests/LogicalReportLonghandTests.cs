@@ -168,7 +168,7 @@ public sealed class LogicalReportLonghandTests
     [TestCase("padding-inline-end:auto", "FPDF1202")]
     [TestCase("margin-block-start:auto", "FPDF1202")]
     [TestCase("margin-block-end:-5%", "FPDF1202")]
-    [TestCase("padding-block-start:calc(1pt + 2pt)", "FPDF1202")]
+    [TestCase("padding-block-start:env(x)", "FPDF1202")]
     [TestCase("padding-inline-start:1pt 2pt", "FPDF1202")]
     [TestCase("margin-inline-end:inherit 0", "FPDF1202")]
     [TestCase("margin-inline-start:99999pt", "FPDF1202")]
@@ -182,7 +182,7 @@ public sealed class LogicalReportLonghandTests
     [Test]
     public void InvalidUnmatchedRuleAndUnsupportedElementsFailBeforeOutput()
     {
-        Reject("<style>.absent{padding-inline-start:calc(1pt + 2pt)}</style><p>A</p>", "FPDF1202");
+        Reject("<style>.absent{padding-inline-start:env(x)}</style><p>A</p>", "FPDF1202");
         // Body has a real margin in the user-agent sheet, so its logical margin is accepted like any panel's.
         Assert.That(Render("<body style='margin-inline-start:4pt'><p>A</p></body>"),
             Is.EqualTo(Render("<body style='margin-left:4pt'><p>A</p></body>")));

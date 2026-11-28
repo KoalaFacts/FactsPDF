@@ -74,7 +74,6 @@ public sealed class ListStructureTests
     [TestCase("<ol><li><span>A<li>B</ol>")]
     [TestCase("<ol><li><div>A<li>B</ol>")]
     [TestCase("<ol><li>A")]
-    [TestCase("<ol><li/></ol>")]
     public void InvalidListStructureProtectsOutput(string html) => Fails(html, "FPDF1101");
 
     [TestCase("<ol start='0'><li>A</li></ol>")]

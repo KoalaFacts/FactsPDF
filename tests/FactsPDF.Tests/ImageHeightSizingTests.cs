@@ -125,7 +125,7 @@ public sealed class ImageHeightSizingTests
 
     [TestCase("<img src=chart style='height:0.1pt;box-sizing:border-box;padding:2pt'>", "FPDF1302")]
     [TestCase("<img src=chart style='height:50%'>", "FPDF1202")]
-    [TestCase("<img src=chart style='height:calc(20pt - 1pt)'>", "FPDF1202")]
+    [TestCase("<img src=chart style='height:env(x)'>", "FPDF1202")]
     [TestCase("<img src=chart style='height:-5pt'>", "FPDF1202")]
     [TestCase("<img src=chart style='height:999pt'>", "FPDF1302")]
     [TestCase("<p style='height:20pt'>BAD</p>", "FPDF1201")]

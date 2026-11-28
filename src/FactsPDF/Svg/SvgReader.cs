@@ -40,7 +40,10 @@ internal static class SvgReader
 
     // Non-rendering accessibility attributes: they change nothing on paper.
     private static bool Accessibility(string name) => name is "role" or "focusable"
-        || name.StartsWith("aria-", StringComparison.Ordinal);
+        || name.StartsWith("aria-", StringComparison.Ordinal) || EventHandler(name);
+
+    // An event handler content attribute only runs script on an event, which a printed page never gets.
+    internal static bool EventHandler(string name) => name.Length > 2 && name.StartsWith("on", StringComparison.Ordinal);
 
     private static bool Shape(string name) => name is "path" or "rect" or "circle" or "ellipse" or "line"
         or "polyline" or "polygon";
@@ -148,7 +151,7 @@ internal static class SvgReader
             if (name is "title" or "desc")
             {
                 foreach (var (attribute, _) in token.Attributes!)
-                    if (!(attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)))
+                    if (!(attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal) || EventHandler(attribute)))
                         throw new FactsPdfException("FPDF1103", $"SVG attribute '{attribute}' is not supported on '{name}'.", token.Offset);
                 if (!token.SelfClosing) { frames.Add(new(name, top.State, t, token.Offset, null)); metadata++; }
                 continue;
@@ -161,7 +164,7 @@ internal static class SvgReader
                     ? "Nested svg elements are not supported."
                     : inClip ? $"SVG element '{name}' is not supported inside clipPath; use one basic shape or path."
                     : $"SVG element '{name}' is not supported.", token.Offset);
-            path.Add(CssElement.From(token));
+            path.Add(CssElement.From(token, t));
             var css = sheets.SvgContent(path, (token as StyledHtmlToken)?.InlineDeclarations ?? default);
             if (css.Display >= 0)
                 throw new FactsPdfException("FPDF1201", "CSS display on SVG content elements is not supported.", css.Display);

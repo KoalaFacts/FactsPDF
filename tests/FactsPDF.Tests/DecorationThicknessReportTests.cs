@@ -161,7 +161,7 @@ public sealed class DecorationThicknessReportTests
     [TestCase("text-decoration-thickness:13pt", "FPDF1202")]
     [TestCase("text-decoration-thickness:50%", "FPDF1202")]
     [TestCase("text-decoration-thickness:1pt 2pt", "FPDF1202")]
-    [TestCase("text-decoration-thickness:calc(1pt + 1pt)", "FPDF1202")]
+    [TestCase("text-decoration-thickness:env(x)", "FPDF1202")]
     [TestCase("text-decoration-thickness:1e-999pt", "FPDF1202")]
     public void InvalidOrNonPaintableThicknessFailsEvenWhenSelectorDoesNotMatch(string declaration, string code)
         => Reject("<style>.absent{" + declaration + "}</style><p>AB</p>", code);
