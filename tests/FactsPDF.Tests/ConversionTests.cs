@@ -159,7 +159,6 @@ public sealed class ConversionTests
     [TestCase("<img src='https://example.invalid/image.png'>", "FPDF1103")]
     [TestCase("<table><tbody><tr><td>A</td></tr><tbody><tr><td>B</td></tr></tbody></table>", "FPDF1101")]
     [TestCase("<math></math>", "FPDF1102")]
-    [TestCase("<p onclick='x()'>A</p>", "FPDF1103")]
     [TestCase("<p style='display:inline-flex'>A</p>", "FPDF1202")]
     [TestCase("<p style='font-size:banana'>A</p>", "FPDF1202")]
     [TestCase("<p style='font-size:-1pt'>A</p>", "FPDF1202")]
@@ -169,7 +168,6 @@ public sealed class ConversionTests
     [TestCase("<p>\u4e2d\u6587</p>", "FPDF1301")]
     [TestCase("<div><span>A</div>", "FPDF1101")]
     [TestCase("<p title='unfinished>A</p>", "FPDF1101")]
-    [TestCase("<p/>", "FPDF1101")]
     [TestCase("<p>&NotEqualTilde;</p>", "FPDF1104")]
     public void UnsupportedOrMalformedInputFailsWithoutWritingOutput(string html, string code)
     {

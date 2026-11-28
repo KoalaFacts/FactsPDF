@@ -52,7 +52,7 @@ internal sealed class CssStylesheets
     // Whether a selector reads sibling positions or emptiness, and the script and template elements
     // collection dropped (each with the token index it preceded), which still count as siblings.
     private bool usesStructure;
-    private List<(int Token, string Name)>? dropped;
+    private List<(int Token, string Name, HtmlToken Source)>? dropped;
 
     /// <summary>The document's element positions, built by <see cref="TrackPositions"/> only when a
     /// selector needs them.</summary>
@@ -139,7 +139,7 @@ internal sealed class CssStylesheets
                 {
                     templateOffset = item.Offset;
                     shape.Dropped(tokens, "template");
-                    (sheet.dropped ??= []).Add((tokens.Count, "template"));
+                    (sheet.dropped ??= []).Add((tokens.Count, "template", item));
                 }
                 continue;
             }
@@ -167,7 +167,7 @@ internal sealed class CssStylesheets
                 if (insideColgroup) throw new FactsPdfException("FPDF1101", "script cannot be inside colgroup.", item.Offset);
                 insideScript = true;
                 shape.Dropped(tokens, "script");
-                (sheet.dropped ??= []).Add((tokens.Count, "script"));
+                (sheet.dropped ??= []).Add((tokens.Count, "script", item));
                 continue;
             }
             var kept = shape.Add(tokens, item);
@@ -285,6 +285,7 @@ internal sealed class CssStylesheets
             }
             // dir="ltr" is accepted on every element, as in the document reader (R5ci).
             else if (!(name is "id" or "class" or "lang" or "title" || name.StartsWith("data-", StringComparison.Ordinal)
+                || name.Length > 2 && name.StartsWith("on", StringComparison.Ordinal)
                 || name == "dir" && value.Equals("ltr", StringComparison.OrdinalIgnoreCase)))
                 throw new FactsPdfException("FPDF1103", $"Attribute '{name}' is not supported on style.", token.Offset);
         }
@@ -534,7 +535,8 @@ internal sealed class CssStylesheets
     internal (TextStyle Text, BoxStyle Box) Compute(TextStyle defaults, bool defaultsOwned, TextStyle parent, TextStyle initial,
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
         bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false,
-        ListMarkerKind? listTypeHint = null, CssPseudoElement pseudo = CssPseudoElement.None, string? pseudoName = null)
+        ListMarkerKind? listTypeHint = null, CssPseudoElement pseudo = CssPseudoElement.None, string? pseudoName = null,
+        CssDeclaration? widthHint = null, CssDeclaration? heightHint = null)
     {
         Array.Clear(winners); var element = path[^1];
         // A pseudo-element is matched through its originating element but validated and computed
@@ -889,6 +891,10 @@ internal sealed class CssStylesheets
                 foreach (var declaration in rule.Declarations) Offer(declaration, false, rule.Selector.Specificity);
             }
         }
+        // The width and height attributes are presentational hints: author-level declarations of
+        // specificity zero that precede every rule, so any author declaration wins.
+        if (widthHint is not null) Offer(widthHint, false, default);
+        if (heightHint is not null) Offer(heightHint, false, default);
         Match(universal);
         if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
@@ -1316,7 +1322,7 @@ internal sealed class CssStylesheets
             foreach (var rule in rules)
             {
                 budget.Work(rule.Selector.Offset);
-                if (!rule.Selector.Matches(path, budget)) continue;
+                if (!rule.Selector.Matches(path, budget, Positions)) continue;
                 foreach (var declaration in rule.Declarations) Note(declaration, declaration.Offset);
             }
         }

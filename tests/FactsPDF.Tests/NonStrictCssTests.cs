@@ -136,7 +136,6 @@ public sealed class NonStrictCssTests
     [TestCase("p{background:url(x.png)}")]
     [TestCase("div{display:var(--missing, initial)}", "<div>x</div>")]
     [TestCase("p:hover{color:red}")]
-    [TestCase("p + p{color:red}")]
     [TestCase("p::first-line{color:red}")]
     [TestCase("@font-face{font-family:x}")]
     [TestCase("@page:first{margin:0}")]

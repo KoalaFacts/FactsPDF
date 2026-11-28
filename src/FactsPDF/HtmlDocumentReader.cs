@@ -608,6 +608,7 @@ internal static class HtmlDocumentReader
             int? listStart = null, listValue = null;
             var listReversed = false;
             ListMarkerKind? listTypeHint = null;
+            CssDeclaration? widthHint = null, heightHint = null;
             foreach (var (attribute, value) in token.Attributes!)
             {
                 if (attribute == "style")
@@ -671,6 +672,11 @@ internal static class HtmlDocumentReader
                 else if (name == "link" && attribute is "href" or "type" or "sizes" or "hreflang" or "crossorigin"
                     or "as" or "color" or "integrity" or "referrerpolicy") { }
                 else if (name == "img" && attribute is "src" or "alt") { }
+                // Presentational hints for CSS width and height, below every author declaration.
+                else if (attribute == "width" && HtmlPresentationalHints.Width(name))
+                    widthHint = HtmlPresentationalHints.Declaration(CssProperty.Width, attribute, value, token.Offset);
+                else if (attribute == "height" && HtmlPresentationalHints.Height(name))
+                    heightHint = HtmlPresentationalHints.Declaration(CssProperty.Height, attribute, value, token.Offset);
                 // The svg's own attributes (size, viewBox, paint, accessibility) are read by SvgReader.
                 else if (name == "svg" && SvgReader.RootAttribute(attribute)) { }
                 else if (name == "time" && attribute == "datetime" || name == "data" && attribute == "value"
@@ -692,6 +698,9 @@ internal static class HtmlDocumentReader
                 }
                 else if (attribute == "title") titled = true;
                 else if (attribute is "id" or "class" or "lang" || attribute.StartsWith("data-", StringComparison.Ordinal)) { }
+                // An event handler content attribute only runs script on an event; FactsPDF runs no
+                // script (see script elements) and a printed page receives no events, so it changes nothing.
+                else if (attribute.Length > 2 && attribute.StartsWith("on", StringComparison.Ordinal)) { }
                 else throw new FactsPdfException("FPDF1103", $"Attribute '{attribute}' is not supported.", token.Offset);
             }
             if (name == "a")
@@ -724,7 +733,8 @@ internal static class HtmlDocumentReader
             if (name is not ("head" or "title"))
                 (style, boxStyle) = sheets.Compute(style, styleOwned, parent, root, rootFontSize, parentBox, path,
                     ParagraphTag(name), BoxTag(name),
-                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden, listTypeHint: listTypeHint);
+                    token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden, listTypeHint: listTypeHint,
+                    widthHint: widthHint, heightHint: heightHint);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
             var winningTextAlign = name is "head" or "title" ? null : sheets.LastTextAlign;
             var alignStart = winningTextAlign switch

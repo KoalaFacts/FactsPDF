@@ -736,7 +736,12 @@ internal static class CssSyntaxAdapter
                 && CssSpecValidity.InvalidDeclaration(node.Name, CanonicalName(node.Name.ToLowerInvariant()), node.Values))
             {
                 output.RemoveRange(mark, output.Count - mark);
-                warnings.Add(error);
+                warnings.Add(NamedInvalid(error, node));
+            }
+            catch (FactsPdfException error) when (warnings is null && error.Code is "FPDF1201" or "FPDF1202"
+                && NeverValid(node) && !error.Message.Contains(InvalidCssNote, StringComparison.Ordinal))
+            {
+                throw NamedInvalid(error, node);
             }
         }
         var compiled = output.ToArray();
@@ -2470,6 +2475,32 @@ internal static class CssSyntaxAdapter
             _ = InlineCss.Apply(ValidationStyle with { }, name, token,
                 paragraph: true, inline: false, offset);
     }
+
+    private const string InvalidCssNote = "Invalid CSS (browsers drop this declaration; --strict false drops it with a warning)";
+
+    // The padding and border-width declarations that no value of the property can satisfy: padding
+    // never takes auto, and a border width is never a percentage. Browsers drop them as invalid CSS.
+    private static bool NeverValid(CssDeclarationNode node)
+    {
+        var name = node.Name.ToLowerInvariant();
+        var padding = name.StartsWith("padding", StringComparison.Ordinal);
+        var width = name.StartsWith("border", StringComparison.Ordinal) && !name.Contains("radius", StringComparison.Ordinal)
+            && !name.Contains("spacing", StringComparison.Ordinal) && !name.Contains("collapse", StringComparison.Ordinal)
+            && !name.Contains("image", StringComparison.Ordinal) && !name.EndsWith("style", StringComparison.Ordinal)
+            && !name.EndsWith("color", StringComparison.Ordinal);
+        if (!padding && !width) return false;
+        foreach (var value in node.Values)
+            if (padding && value is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } ident }
+                    && ident.Value.Equals("auto", StringComparison.OrdinalIgnoreCase)
+                || width && value is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Percentage })
+                return true;
+        return false;
+    }
+
+    private static FactsPdfException NamedInvalid(FactsPdfException error, CssDeclarationNode node)
+        => NeverValid(node) && !error.Message.Contains(InvalidCssNote, StringComparison.Ordinal)
+            ? new(error.Code, $"{InvalidCssNote}: {error.Message[(error.Code.Length + 2)..]}", error.SourceOffset)
+            : error;
 
     internal static CssSelector[] CompileSelectors(
         IReadOnlyList<CssSyntaxComponent> prelude, CssBudget budget, int offset)

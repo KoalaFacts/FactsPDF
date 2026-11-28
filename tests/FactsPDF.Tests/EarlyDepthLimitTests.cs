@@ -94,9 +94,9 @@ public sealed class EarlyDepthLimitTests
     }
 
     [Test]
-    public void ANonVoidSelfClosedTagKeepsItsOwnCode()
+    public void ANonVoidSelfClosedTagOpensAnElementLikeAnyStartTag()
     {
         var html = "<div/>" + Repeat("<div>", 40) + "x";
-        Assert.That(Fails(html, 16).Code, Is.EqualTo("FPDF1101"));
+        Assert.That(Fails(html, 16).Code, Is.EqualTo("FPDF1003"));
     }
 }
