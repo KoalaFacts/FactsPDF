@@ -17,15 +17,33 @@ internal sealed class HtmlElementPositions
 
     private struct Slot
     {
-        internal int Index, Count, TypeIndex, TypeCount;
+        internal int Index, Count, TypeIndex, TypeCount, Previous;
         internal bool Empty;
     }
 
     private readonly record struct Frame(int Token, string Name, int ChildStart, bool CellList = false);
 
     private readonly Slot[] slots;
+    private readonly List<HtmlToken> tokens;
+    private readonly IReadOnlyList<(int Token, string Name, HtmlToken Source)>? dropped;
 
-    private HtmlElementPositions(int count) => slots = new Slot[count];
+    // A node is an element of the document: its start tag's index in the token list, or, for a
+    // script or template element the collection dropped, the token count plus its place among them.
+    private HtmlElementPositions(List<HtmlToken> tokens, IReadOnlyList<(int Token, string Name, HtmlToken Source)>? dropped)
+    {
+        this.tokens = tokens;
+        this.dropped = dropped;
+        slots = new Slot[tokens.Count + (dropped?.Count ?? 0)];
+    }
+
+    /// <summary>The node of the element sibling just before this one, or -1 for a first child.</summary>
+    internal int PreviousSibling(int node) => slots[node].Previous;
+
+    /// <summary>The element a node stands for: a dropped script or template keeps its attributes, so
+    /// a selector can test it as a sibling.</summary>
+    internal CssElement Element(int node) => node < tokens.Count
+        ? CssElement.From(tokens[node], node)
+        : CssElement.From(dropped![node - tokens.Count].Source, node);
 
     internal Position this[int token]
     {
@@ -37,20 +55,20 @@ internal sealed class HtmlElementPositions
     }
 
     // Elements the reader never opens: void elements and those it skips.
-    private static bool Void(string name) => name is "img" or "hr" or "br" or "meta" or "link" or "base" or "col";
+    private static bool Void(string name) => name is "img" or "hr" or "br" or "meta" or "link" or "base" or "col" || HtmlDocumentReader.VoidInlineTag(name);
 
     /// <param name="tokens">The collected document tokens.</param>
     /// <param name="dropped">Script and template elements collection removed, each with the token
     /// index it preceded, in document order.</param>
     /// <param name="cancellation">Cancels the walk.</param>
     internal static HtmlElementPositions Build(List<HtmlToken> tokens,
-        IReadOnlyList<(int Token, string Name)>? dropped, CancellationToken cancellation)
+        IReadOnlyList<(int Token, string Name, HtmlToken Source)>? dropped, CancellationToken cancellation)
     {
-        var positions = new HtmlElementPositions(tokens.Count);
+        var positions = new HtmlElementPositions(tokens, dropped);
         var slots = positions.slots;
         var frames = new List<Frame>();
         var content = new List<bool>(); // per open frame: whether it has a child element or text
-        // Children of every open element as start-tag indices (-1 for a dropped element) with their
+        // Children of every open element as nodes (start-tag indices, or the ids of dropped elements) with their
         // names; a frame's children are the tail from its ChildStart.
         var children = new List<(int Token, string Name)>();
         var typeCounts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -75,12 +93,12 @@ internal sealed class HtmlElementPositions
                 var (token, name) = children[k];
                 var typeIndex = typeCounts.TryGetValue(name, out var seen) ? seen + 1 : 1;
                 typeCounts[name] = typeIndex;
-                if (token < 0) continue;
                 ref var slot = ref slots[token];
                 slot.Index = k - frame.ChildStart + 1; slot.Count = count; slot.TypeIndex = typeIndex;
+                slot.Previous = k > frame.ChildStart ? children[k - 1].Token : -1;
             }
             for (var k = frame.ChildStart; k < children.Count; k++)
-                if (children[k].Token is >= 0 and var token) slots[token].TypeCount = typeCounts[children[k].Name];
+                slots[children[k].Token].TypeCount = typeCounts[children[k].Name];
             slots[frame.Token].Empty = !content[^1];
             if (frame.Name == "table") tables--;
             if (frame.CellList) cellLists--;
@@ -93,7 +111,7 @@ internal sealed class HtmlElementPositions
         {
             cancellation.ThrowIfCancellationRequested();
             while (dropped is not null && next < dropped.Count && dropped[next].Token == t)
-                AddChild(-1, dropped[next++].Name);
+            { AddChild(tokens.Count + next, dropped[next].Name); next++; }
             var token = tokens[t];
             if (token.Kind == HtmlTokenKind.Text)
             {
@@ -129,13 +147,15 @@ internal sealed class HtmlElementPositions
             // The reader rejects any other mismatched end tag before it styles a later element.
             if (Top() == name) Close();
         }
-        while (dropped is not null && next < dropped.Count) AddChild(-1, dropped[next++].Name);
+        while (dropped is not null && next < dropped.Count) { AddChild(tokens.Count + next, dropped[next].Name); next++; }
         while (frames.Count > 0) Close();
         // The document's own children: html, its only element, unless the reader rejects the page.
         var rootCount = children.Count;
         for (var k = 0; k < rootCount; k++)
-            if (children[k].Token is >= 0 and var token)
-                slots[token] = slots[token] with { Index = k + 1, Count = rootCount, TypeIndex = k + 1, TypeCount = rootCount };
+        {
+            var token = children[k].Token;
+            slots[token] = slots[token] with { Index = k + 1, Count = rootCount, TypeIndex = k + 1, TypeCount = rootCount, Previous = k > 0 ? children[k - 1].Token : -1 };
+        }
         return positions;
     }
 }

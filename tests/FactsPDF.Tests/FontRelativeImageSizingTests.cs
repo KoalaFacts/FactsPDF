@@ -114,7 +114,7 @@ public sealed class FontRelativeImageSizingTests
 
     [TestCase("<img src=chart style='height:50%'>", "FPDF1202")]
     [TestCase("<img src=chart style='max-height:25%'>", "FPDF1202")]
-    [TestCase("<img src=chart style='height:calc(2em + 1pt)'>", "FPDF1202")]
+    [TestCase("<img src=chart style='height:env(x)'>", "FPDF1202")]
     [TestCase("<img src=chart style='width:-2em'>", "FPDF1202")]
     [TestCase("<img src=chart style='height:0em'>", "FPDF1302")]
     [TestCase("<img src=chart style='width:0rem'>", "FPDF1302")]

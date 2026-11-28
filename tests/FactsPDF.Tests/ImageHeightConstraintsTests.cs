@@ -105,7 +105,7 @@ public sealed class ImageHeightConstraintsTests
 
     [TestCase("<img src=chart style='max-height:30%'>", "FPDF1202")]
     [TestCase("<img src=chart style='min-height:20%'>", "FPDF1202")]
-    [TestCase("<img src=chart style='max-height:calc(20pt - 4pt)'>", "FPDF1202")]
+    [TestCase("<img src=chart style='max-height:env(x)'>", "FPDF1202")]
     [TestCase("<img src=chart style='max-height:-5pt'>", "FPDF1202")]
     [TestCase("<img src=chart style='max-height:0'>", "FPDF1302")]
     [TestCase("<img src=chart style='width:140pt;min-width:130pt;max-height:20pt'>", "FPDF1302")]
@@ -119,5 +119,5 @@ public sealed class ImageHeightConstraintsTests
 
     [Test]
     public void UnmatchedUnsupportedSyntaxDoesNotGetSilentlyAccepted()
-        => Reject("<style>.never{max-height:calc(40pt - 2pt)}</style><img src=chart>", "FPDF1202");
+        => Reject("<style>.never{max-height:env(x)}</style><img src=chart>", "FPDF1202");
 }

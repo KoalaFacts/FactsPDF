@@ -44,7 +44,10 @@ internal readonly record struct InlineVerticalAlign(InlineAlignKind Kind, double
 }
 internal enum TextTransform { None, Uppercase, Lowercase, Capitalize }
 // This is the renderer's bounded outside-list marker selection, not CSS counters.
-internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None }
+// Disclosure is the first summary of a details element: its user-agent marker, a triangle that
+// points right while the details is closed and down while it is open. Author CSS can only replace it
+// (list-style-type:none removes it); it is never written as a type name.
+internal enum ListMarkerKind { Disc, Circle, Square, Decimal, LowerAlpha, UpperAlpha, LowerRoman, UpperRoman, None, Disclosure }
 // Each channel is held as one byte (n/255): every colour CSS gives FactsPDF is a byte per channel,
 // and A is the CSS alpha quantised to one byte, as Chrome's PDF backend stores paint alpha. Four
 // bytes keep a colour smaller than the three doubles it replaced, so alpha costs no style or
@@ -316,27 +319,36 @@ internal sealed record PaintedBox(double X, double Top, double Width, double Hei
         var top = isFirstFragment ? Math.Min(Math.Max(0, height), style.BorderTop.EffectiveWidth) : 0;
         var bottom = isLastFragment ? Math.Min(Math.Max(0, height), style.BorderBottom.EffectiveWidth) : 0;
         var middleHeight = Math.Max(0, height - top - bottom);
+        // A groove is two bands, so it costs two rectangles.
+        static int Edge(BorderEdge edge) => edge.Pattern == BorderPattern.Groove ? 2 : 1;
         return outline + (width > 0 && height > 0 && style.BackgroundColor.HasValue ? 1 : 0)
-            + (width > 0 && top > 0 && !style.BorderTop.Transparent ? 1 : 0)
-            + (width > 0 && bottom > 0 && !style.BorderBottom.Transparent ? 1 : 0)
-            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? 1 : 0)
-            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 && !style.BorderRight.Transparent ? 1 : 0);
+            + (width > 0 && top > 0 && !style.BorderTop.Transparent ? Edge(style.BorderTop) : 0)
+            + (width > 0 && bottom > 0 && !style.BorderBottom.Transparent ? Edge(style.BorderBottom) : 0)
+            + (middleHeight > 0 && style.BorderLeft.EffectiveWidth > 0 && !style.BorderLeft.Transparent ? Edge(style.BorderLeft) : 0)
+            + (middleHeight > 0 && style.BorderRight.EffectiveWidth > 0 && !style.BorderRight.Transparent ? Edge(style.BorderRight) : 0);
     }
 }
 
 // M5 retains the box tree; M6 computes geometry; M7 paints single-page
 // borders/backgrounds; M8 slices continued decorations across page fragments.
-internal readonly record struct CssLength(double Value, bool IsPercent = false)
+// A length in points, or (IsPercent) a percentage of the containing block plus Fixed points, which only
+// a calc() sum of a percentage and a length produces.
+internal readonly record struct CssLength(double Value, bool IsPercent = false, double Fixed = 0)
 {
-    internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 : Value;
+    internal double Resolve(double containingWidth) => IsPercent ? containingWidth * Value / 100 + Fixed : Value;
+
+    /// <summary>Whether the length is a percentage plus a fixed length (see calc()).</summary>
+    internal bool IsMixed => IsPercent && Fixed != 0;
 }
 
 // Specified values are retained until the containing block's content width is known.
 // All properties in BoxStyle are non-inherited by default.
 // The pattern affects PDF strokes, while the existing Solid bit continues to
 // distinguish painted borders from CSS none without changing legacy boxes.
-internal enum BorderPattern { Solid, Dashed, Dotted }
 internal enum BackgroundClip { BorderBox, PaddingBox, ContentBox }
+// Groove is the user-agent border of fieldset (2px groove): two bands of one colour, which only that
+// element's default can produce (author border-style values stay solid, dashed, dotted and none).
+internal enum BorderPattern { Solid, Dashed, Dotted, Groove }
 internal readonly record struct BorderEdge(double Width, bool Solid, Rgb? Color)
 {
     internal BorderPattern Pattern { get; init; } = BorderPattern.Solid;
@@ -415,13 +427,20 @@ internal sealed record BoxStyle
     public bool AvoidBreakInside { get; set; }
     public Rgb? BackgroundColor { get; set; } // null: transparent
     // The box edge the background colour is painted to (background-clip); not inherited.
-    public BackgroundClip BackgroundClip { get; set; }
+    // The rarely set properties share one lazily created reference, so a box that sets none of them costs
+    // eight bytes: background-clip, object-fit and object-position, table-layout and the counter lists.
+    private sealed record Rare(BackgroundClip Clip, ObjectPlacement Placement, bool FixedTable, CounterOps Counters)
+    {
+        internal static readonly Rare Default = new(BackgroundClip.BorderBox, ObjectPlacement.Initial, false, CounterOps.None);
+    }
+    private Rare? rare;
+    public BackgroundClip BackgroundClip { get => (rare ?? Rare.Default).Clip; set => rare = (rare ?? Rare.Default) with { Clip = value }; }
     // object-fit and object-position of an img; not inherited.
-    public ObjectPlacement ObjectPlacement { get; set; } = ObjectPlacement.Initial;
+    public ObjectPlacement ObjectPlacement { get => (rare ?? Rare.Default).Placement; set => rare = (rare ?? Rare.Default) with { Placement = value }; }
     // table-layout:fixed on a table: columns come from the table width, the col widths and the first row.
-    public bool FixedTableLayout { get; set; }
+    public bool FixedTableLayout { get => (rare ?? Rare.Default).FixedTable; set => rare = (rare ?? Rare.Default) with { FixedTable = value }; }
     // counter-reset, counter-increment and counter-set; not inherited.
-    public CounterOps Counters { get; set; } = CounterOps.None;
+    public CounterOps Counters { get => (rare ?? Rare.Default).Counters; set => rare = (rare ?? Rare.Default) with { Counters = value }; }
     // Retain the currentColor token when background:inherit is authored on a
     // child: its actual ink resolves against the receiving element's colour.
     // The renderer still consumes only the final BackgroundColor RGB value.

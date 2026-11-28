@@ -42,9 +42,14 @@ internal sealed record StyledHtmlToken(string Value, HtmlAttributes AttributeMap
 /// <summary>Tokenizer for the explicitly documented static-HTML subset; not an HTML5 conformance claim.</summary>
 internal static class HtmlTokens
 {
+    // The HTML void elements: their start tags never take an end tag, so a trailing slash is allowed.
+    private static bool VoidName(string name) => name is "area" or "base" or "br" or "col" or "embed" or "hr"
+        or "img" or "input" or "link" or "meta" or "param" or "source" or "track" or "wbr";
+
     public static IEnumerable<HtmlToken> Read(string html, CancellationToken cancellation)
     {
         var i = 0;
+        var foreign = 0; // open svg elements: foreign content, where a self-closing slash closes the element
         while (i < html.Length)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -83,6 +88,7 @@ internal static class HtmlTokens
             if (closing)
             {
                 if (i >= html.Length || html[i++] != '>') throw Invalid("Malformed end tag.", start);
+                if (name == "svg" && foreign > 0) foreign--;
                 yield return new(HtmlTokenKind.End, name, false, start);
                 continue;
             }
@@ -158,6 +164,10 @@ internal static class HtmlTokens
             {
                 ReleaseAttributeScratch(scratch);
             }
+            // The HTML parser ignores the slash of a start tag that is neither void nor foreign
+            // content: <div/> opens a div, which a later end tag closes.
+            if (selfClosing && foreign == 0 && name != "svg" && !VoidName(name)) selfClosing = false;
+            if (name == "svg" && !selfClosing) foreign++;
             yield return styleValueOffset >= 0
                 ? new StyledHtmlToken(name, attrs!, selfClosing, start, styleValueOffset, styleOriginOffsets)
                 : attrs is null
@@ -178,6 +188,25 @@ internal static class HtmlTokens
                     end = after;
                 }
                 yield return new(HtmlTokenKind.StyleText, html[i..end], false, i);
+                i = end;
+            }
+            else if (name is "noscript" or "iframe")
+            {
+                // With scripting enabled (as when a browser prints a page) the HTML parser reads
+                // noscript as a raw text element, and iframe always: the content is data up to the
+                // first "</noscript" or "</iframe" followed by a delimiter, never markup, and the
+                // element's content is never rendered.
+                var end = i;
+                var close = "</" + name;
+                while (true)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    end = html.IndexOf(close, end, StringComparison.OrdinalIgnoreCase);
+                    if (end < 0) throw Invalid($"Unclosed {name} element.", start);
+                    var after = end + close.Length;
+                    if (after < html.Length && (Space(html[after]) || html[after] is '>' or '/')) break;
+                    end = after;
+                }
                 i = end;
             }
             else if (name == "script")
@@ -339,7 +368,7 @@ internal static class HtmlTokens
     private static readonly SpanStringSet KnownNames = new([
         "a", "abbr", "address", "article", "aside", "b", "base", "bdi", "blockquote", "body", "br", "caption", "cite", "code", "col", "colgroup", "data", "dd", "del", "dfn", "div",
         "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "img",
-        "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "ol", "p", "pre", "q", "s", "samp", "script", "search", "section", "small", "span", "strong",
+        "ins", "kbd", "li", "link", "main", "menu", "meta", "nav", "noscript", "ol", "p", "pre", "q", "s", "samp", "script", "search", "section", "small", "span", "strong",
         "style", "sub", "sup", "table", "tbody", "td", "template", "tfoot", "th", "thead", "time", "title", "tr", "u", "ul", "var",
         "alt", "charset", "class", "colspan", "content", "datetime", "dir", "height", "hidden", "href", "id", "lang", "name", "reversed",
         "property", "rel", "rowspan", "src", "start", "target", "type", "value", "width",

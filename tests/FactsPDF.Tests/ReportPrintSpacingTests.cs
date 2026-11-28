@@ -209,7 +209,7 @@ public sealed class ReportPrintSpacingTests
     [TestCase("line-height:200pc")]
     [TestCase("letter-spacing:3pc")]
     [TestCase("border-width:4q 3pt 2q 1pc 5q")]
-    [TestCase("margin:1pc calc(2q)")]
+    [TestCase("margin:1pc env(x)")]
     public void InvalidPrintUnitValuesKeepDestinationUnchanged(string css)
         => Reject(css);
 
@@ -225,9 +225,9 @@ public sealed class ReportPrintSpacingTests
     [TestCase("margin:-1%")]
     [TestCase("margin:inherit 0")]
     [TestCase("margin:0 0 0 0 0")]
-    [TestCase("margin:calc(1mm + 2mm) 0")]
-    [TestCase("width:1vh")]
-    [TestCase("padding:1vh")]
+    [TestCase("margin:env(x) 0")]
+    [TestCase("width:1ex")]
+    [TestCase("padding:1ex")]
     [TestCase("border-width:3%")]
     [TestCase("font-size:300mm")]
     [TestCase("padding:5100mm")]

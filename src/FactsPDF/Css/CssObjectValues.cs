@@ -15,7 +15,7 @@ internal readonly record struct ObjectAxis(double Percent, double Offset)
 }
 
 /// <summary>The computed object-fit and object-position of an img, shared by the box style and the placed image.</summary>
-internal readonly record struct ObjectPlacement(ObjectFit Fit, ObjectAxis X, ObjectAxis Y)
+internal sealed record ObjectPlacement(ObjectFit Fit, ObjectAxis X, ObjectAxis Y)
 {
     internal static readonly ObjectPlacement Initial = new(ObjectFit.Fill, ObjectAxis.Centre, ObjectAxis.Centre);
 }

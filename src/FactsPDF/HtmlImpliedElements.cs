@@ -33,7 +33,7 @@ internal sealed class HtmlImpliedElements
     // The state of each table a nested table (in one of its cells) interrupts, innermost last.
     private readonly Stack<(bool Section, bool Implied)> outerTables = new();
 
-    private static bool HeadContent(string name) => name is "style" or "script" or "template" or "title" or "meta" or "link" or "base";
+    private static bool HeadContent(string name) => name is "style" or "script" or "noscript" or "template" or "title" or "meta" or "link" or "base";
 
     /// <summary>Appends <paramref name="token"/> to <paramref name="tokens"/>, after the html, head
     /// and body tags it implies, and returns true; returns false for a tag the HTML parser ignores

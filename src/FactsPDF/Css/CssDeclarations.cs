@@ -14,7 +14,11 @@ internal enum CssProperty
     OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset, TextAlignLast, BorderCollapse, Orphans, Widows,
     FlexDirection, FlexWrap, JustifyContent, AlignItems, AlignSelf, FlexGrow, FlexShrink, FlexBasis,
     ColumnGap, RowGap, Order, Content, GridTemplateColumns, JustifyItems, JustifySelf,
-    BackgroundClip, TableLayout, Hyphens, ObjectFit, ObjectPosition, CounterReset, CounterIncrement, CounterSet, PageName,
+    BackgroundClip, TableLayout, Hyphens, ObjectFit, ObjectPosition, CounterReset, CounterIncrement, CounterSet,
+    // The animation longhands the cascade carries (CssAnimations): lists of layers, applied as a
+    // keyframe state rather than to a style, so they stay the last cascade slots.
+    AnimationName, AnimationDuration, AnimationDelay, AnimationIterationCount, AnimationDirection,
+    AnimationFillMode, AnimationTimingFunction,
     // Never a cascade slot: a custom property declaration (--name, Payload CssCustomValue) and a
     // supported property whose value holds var() (Payload CssPendingValue), which the cascade
     // compiles for each element after substitution.

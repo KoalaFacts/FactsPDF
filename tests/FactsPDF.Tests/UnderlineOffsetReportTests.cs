@@ -131,7 +131,7 @@ public sealed class UnderlineOffsetReportTests
     [TestCase("text-underline-offset:-1pt", "FPDF1202")]
     [TestCase("text-underline-offset:25pt", "FPDF1202")]
     [TestCase("text-underline-offset:40%", "FPDF1202")]
-    [TestCase("text-underline-offset:calc(1pt + 1pt)", "FPDF1202")]
+    [TestCase("text-underline-offset:env(x)", "FPDF1202")]
     [TestCase("text-underline-offset:2pt 3pt", "FPDF1202")]
     [TestCase("text-underline-offset:1e-999pt", "FPDF1202")]
     public void InvalidValuesFailEvenInNonmatchingRulesWithoutClobberingOutput(string declaration, string code)

@@ -87,11 +87,14 @@ internal static class TextLines
                 start++;
                 continue;
             }
+            // A word break opportunity has no ink and no advance: it only ended the line segment.
+            if (first.Scalar == WordBreakOpportunity) { start++; continue; }
             // Charge each real decoration path before retaining the run;
             // a combined underline/strike/overline uses up to three commands.
             charge(1 + TextDecorationCommands.Count(first.Style.Decoration)
                 + (first.Style.LinkUri is null ? 0 : 1), sourceOffset); var width = 0d; var end = start; var utf16Length = 0;
-            while (end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
+            while (end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Scalar != WordBreakOpportunity
+                && line.Glyphs[end].Style == first.Style
                 && ReferenceEquals(line.Glyphs[end].Font, first.Font))
             {
                 if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
@@ -816,6 +819,9 @@ internal static class TextLines
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved)
     {
         if (scalar == SoftHyphen) return new(scalar, style, null, 0, sourceOffset);
+        // U+200B (what a wbr element reads as) is a zero-width soft wrap opportunity with nothing
+        // to draw, so it needs no font and never reaches the page (see AppendLine).
+        if (scalar == WordBreakOpportunity) return new(scalar, style, null, 0, sourceOffset);
         var role = FontRoles.Role(style);
         if (!resolved.TryGetValue((role, scalar), out var value))
         {
@@ -1062,11 +1068,16 @@ internal static class TextLines
     }
     private static bool Cjk(int scalar) => scalar is >= 0x3000 and <= 0x30ff or >= 0x3400 and <= 0x9fff
         or >= 0xac00 and <= 0xd7a3 or >= 0xf900 and <= 0xfaff or >= 0xff01 and <= 0xff65 or >= 0x20000 and <= 0x323af;
+    internal const int WordBreakOpportunity = 0x200B;
+
     private static bool CanBreak(int previous, int next)
     {
         // CSS Text: a soft wrap opportunity before and after every atomic inline, even beside a
         // no-break space.
         if (previous < -1 || next < -1) return true;
+        // A zero-width space (wbr) allows a break after it and never before it (UAX 14 LB7, LB8).
+        if (next == WordBreakOpportunity) return false;
+        if (previous == WordBreakOpportunity) return true;
         if (previous == 160 || next == 160) return false;
         const string opening = "（〔［｛〈《「『【〖〘〚‘“([{", closing = "、。，．？！：；）》」』】〕］｝〗〙〛’”!?;:.,)]}";
         if (previous <= 65535 && opening.Contains((char)previous) || next <= 65535 && closing.Contains((char)next)) return false;
