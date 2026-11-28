@@ -216,8 +216,8 @@ internal sealed partial class TagPlan
             for (var i = 0; i < page.Images.Count; i++)
             {
                 var element = structure.Find(page.Images[i].SourceOffset);
-                imageNodes[imageBases[p] + i] = element < 0 ? ArtifactNode
-                    : structure.Role(element) == StructureRole.Artifact ? ArtifactNode
+                // Only an img or svg is a figure; paint with another source (the details disclosure triangle) is decoration.
+                imageNodes[imageBases[p] + i] = element < 0 || structure.Role(element) != StructureRole.Figure ? ArtifactNode
                     : NodeOfHolder(structure.Holder(element));
             }
 

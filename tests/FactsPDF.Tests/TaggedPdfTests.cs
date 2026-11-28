@@ -41,6 +41,14 @@ public sealed partial class TaggedPdfTests
     public void ElementsBecomeTheirStructureTypes(string body, string expected)
         => Assert.That(Tagged(Html(body)).Tree(), Is.EqualTo(expected));
 
+    [TestCase("<details open><summary>AB</summary><p>WiB</p></details>", "Document(Div(P(#),P(#)))")]
+    [TestCase("<form><p><label>AB</label> <output>WiB</output></p></form>", "Document(Div(P(#)))")]
+    [TestCase("<fieldset><p>AB</p></fieldset>", "Document(Div(P(#)))")]
+    [TestCase("<p>AB <bdo dir=\"ltr\">WiB</bdo> <map name=\"m\"></map></p>", "Document(P(#))")]
+    [TestCase("<p>AB</p><canvas width=\"40\" height=\"20\"></canvas><iframe width=\"40\" height=\"20\"></iframe>", "Document(P(#))")]
+    public void FormAndInteractiveElementsGetTheirStructure(string body, string expected)
+        => Assert.That(Tagged(Html(body)).Tree(), Is.EqualTo(expected));
+
     [Test]
     public void TextDirectlyInAGroupingElementGoesIntoAnImpliedParagraph()
         => Assert.That(Tagged(Html("<div>AB<p>WiB</p>AB</div>")).Tree(), Is.EqualTo("Document(Div(P(#),P(#),P(#)))"));

@@ -245,6 +245,8 @@ internal sealed class DocumentStructure
     {
         var role = StructureRoles.FromTag(name);
         var attributes = token.Attributes;
+        // canvas, video and iframe are replaced boxes that draw nothing here: no content, so no Figure.
+        if (name is "canvas" or "video" or "iframe") return StructureRole.Artifact;
         if (name is "img" or "svg")
         {
             if (attributes is not null && (attributes.TryGetValue("role", out var presentation) && presentation is "presentation" or "none"

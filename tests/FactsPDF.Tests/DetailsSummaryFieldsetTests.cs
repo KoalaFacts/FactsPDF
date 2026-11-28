@@ -10,7 +10,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class DetailsSummaryFieldsetTests
 {
-    private static readonly PdfOptions Page = new() { PageWidth = 260, PageHeight = 300, Margin = 12 };
+    private static readonly PdfOptions Page = new() { Tagged = false, PageWidth = 260, PageHeight = 300, Margin = 12 };
 
     private static byte[] Pdf(string html) => TableLayoutTests.Pdf(html, Page);
 

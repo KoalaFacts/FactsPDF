@@ -44,12 +44,12 @@ internal static class StructureRoles
     /// <summary>The structure type for an element tag, or None when the element is transparent.</summary>
     internal static StructureRole FromTag(string tag) => tag switch
     {
-        "div" or "header" or "footer" or "main" or "nav" or "hgroup" or "search" or "address" or "figure" => StructureRole.Div,
+        "div" or "header" or "footer" or "main" or "nav" or "hgroup" or "search" or "address" or "figure" or "details" or "form" or "fieldset" => StructureRole.Div,
         "aside" => StructureRole.Aside,
         "section" => StructureRole.Sect,
         "article" => StructureRole.Art,
         "blockquote" => StructureRole.BlockQuote,
-        "figcaption" or "caption" => StructureRole.Caption,
+        "figcaption" or "caption" or "legend" => StructureRole.Caption,
         "p" or "pre" => StructureRole.P,
         "h1" => StructureRole.H1, "h2" => StructureRole.H2, "h3" => StructureRole.H3,
         "h4" => StructureRole.H4, "h5" => StructureRole.H5, "h6" => StructureRole.H6,

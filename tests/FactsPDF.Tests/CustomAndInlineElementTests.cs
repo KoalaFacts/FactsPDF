@@ -9,8 +9,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class CustomAndInlineElementTests
 {
-    private static readonly PdfOptions Page = new()
-    {
+    private static readonly PdfOptions Page = new() { Tagged = false,
         PageWidth = 260, PageHeight = 300, Margin = 12,
         Images = new Dictionary<string, PdfImage> { ["logo"] = PdfImage.FromBytes(PngFixture.Image([0, 80, 100], type: 0)) }
     };

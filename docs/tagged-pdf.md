@@ -21,7 +21,7 @@ releases wrote for the same input.
 | HTML | Structure type | Notes |
 | --- | --- | --- |
 | `html`, `body` | `Document` | One `Document` holds everything. |
-| `div`, `header`, `footer`, `main`, `nav`, `hgroup`, `search`, `address`, `figure` | `Div` | |
+| `div`, `header`, `footer`, `main`, `nav`, `hgroup`, `search`, `address`, `figure`, `details`, `form`, `fieldset` | `Div` | `summary` is text of the enclosing `Div` (an implied `P`); `legend` is a `Caption`. |
 | `section`, `article` | `Sect`, `Art` | |
 | `aside` | `Aside` | Chrome's type; a PDF 2.0 type, so the `RoleMap` maps it to `Sect` (written only when used). |
 | `blockquote` | `BlockQuote` | |
@@ -40,7 +40,8 @@ releases wrote for the same input.
 | `img`, `svg` | `Figure` | `Alt` is the `alt` attribute (an svg: `aria-label`, else its `title`). An `img` with `alt=""` and an svg with `role="presentation"` or `aria-hidden="true"` are decorative: an artifact, no `Figure`. |
 | an inline element with `lang` | `Span` with `Lang` | |
 | `abbr` with `title` | `Span` with `E` (the expansion) | |
-| `span`, `b`, `i`, `u`, `s`, `small`, `br`, `hr` and the other inline elements | none | The content belongs to the enclosing structure element. |
+| `canvas`, `video`, `iframe` | none (artifact) | They draw nothing, so they have no content to describe. |
+| `label`, `output`, `map`, `bdo`, `picture`, `slot`, custom elements, `span`, `b`, `i`, `u`, `s`, `small`, `br`, `hr` and the other inline elements | none | The content belongs to the enclosing structure element. |
 
 Text directly inside a grouping element (`Div`, `Sect`, a list or table part) goes into an implied `P`. Elements with no
 content (empty or hidden) leave no structure element. Kids are in reading order: list markers and images are read in line
