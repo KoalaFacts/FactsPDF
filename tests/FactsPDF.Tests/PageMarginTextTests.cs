@@ -171,7 +171,7 @@ public sealed class PageMarginTextTests
     [Test]
     public void BodyBudgetThenHeaderThenFooterThenOutputErrorsHaveDeterministicOrder()
     {
-        Fails("<video>x</video>",With(Page,"\n"),"FPDF1102");
+        Fails("<marquee>x</marquee>",With(Page,"\n"),"FPDF1102");
         Fails("<p>A</p>",With(Page with { MaxDisplayCommands=1 },"\n"),"FPDF1401");
         Fails("",With(Page,"\u4e2d","\n"),"FPDF1301");
         Fails("",With(Page with { MaxDisplayCommands=1 },"A","\n"),"FPDF1401");

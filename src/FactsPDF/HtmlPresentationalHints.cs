@@ -12,11 +12,11 @@ namespace FactsPDF;
 internal static class HtmlPresentationalHints
 {
     /// <summary>Whether the element maps a width attribute to CSS width.</summary>
-    internal static bool Width(string element) => element is "img" or "table" or "td" or "th" or "col" or "colgroup";
+    internal static bool Width(string element) => element is "img" or "video" or "iframe" or "table" or "td" or "th" or "col" or "colgroup";
 
     /// <summary>Whether the element maps a height attribute to CSS height. Table, row and cell heights have
     /// no CSS equivalent here (height applies to panels and images), so their attribute stays unsupported.</summary>
-    internal static bool Height(string element) => element == "img";
+    internal static bool Height(string element) => element is "img" or "video" or "iframe";
 
     /// <summary>The CSS length or percentage the attribute value stands for (such as 100px or 50%), or
     /// null when HTML ignores the value.</summary>

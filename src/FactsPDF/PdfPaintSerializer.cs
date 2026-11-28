@@ -152,7 +152,7 @@ internal static class PdfPaintSerializer
             var left = s.BorderLeft.EffectiveWidth;
             if (top > 0)
                 Border(output, s.BorderTop, box.TextColor, x, y, width, top,
-                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
+                    horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha, leading: true);
             if (bottom > 0)
                 Border(output, s.BorderBottom, box.TextColor, x, y + height - bottom, width, bottom,
                     horizontal: true, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
@@ -160,7 +160,7 @@ internal static class PdfPaintSerializer
             var middleHeight = Math.Max(0, height - top - bottom);
             if (left > 0)
                 Border(output, s.BorderLeft, box.TextColor, x, middleTop, left, middleHeight,
-                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
+                    horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha, leading: true);
             if (right > 0)
                 Border(output, s.BorderRight, box.TextColor, x + width - right, middleTop, right, middleHeight,
                     horizontal: false, pageHeight, maxOutputBytes, box.SourceOffset, ref alpha);
@@ -387,7 +387,7 @@ internal static class PdfPaintSerializer
     // side patterns restart on each retained page fragment (no CSS slice clone).
     private static void Border(StringBuilder output, BorderEdge edge, Rgb textColor,
         double x, double top, double width, double height, bool horizontal,
-        double pageHeight, int maxOutputBytes, int sourceOffset, ref PdfAlphaStates alpha)
+        double pageHeight, int maxOutputBytes, int sourceOffset, ref PdfAlphaStates alpha, bool leading = false)
     {
         if (width <= 0 || height <= 0 || edge.EffectiveWidth <= 0 || edge.Transparent) return;
         var color = edge.Color ?? textColor;
@@ -395,6 +395,12 @@ internal static class PdfPaintSerializer
         if (edge.Pattern == BorderPattern.Solid)
         {
             Rect(output, color, x, top, width, height, pageHeight, maxOutputBytes, sourceOffset, ref alpha);
+            return;
+        }
+        if (edge.Pattern == BorderPattern.Groove)
+        {
+            ThreeDimensionalBorder(output, color, leading, x, top, width, height, horizontal,
+                pageHeight, maxOutputBytes, sourceOffset, ref alpha);
             return;
         }
         var stroke = horizontal ? height : width;
@@ -434,6 +440,34 @@ internal static class PdfPaintSerializer
             .AppendInvariant(x2, Number).Append(' ').AppendInvariant(y2, Number).Append(" l S Q\n");
         if (output.Length > maxOutputBytes)
             throw new FactsPdfException("FPDF1401", "PDF patterned border exceeds MaxOutputBytes.", sourceOffset);
+    }
+
+    // A groove border as Chrome paints it: each edge is two bands of the border colour and its darker
+    // shade (Chrome's Color::Dark, every channel scaled by (v - 0.33) / v for v the largest channel),
+    // dark outside and plain inside on the top and left, the reverse on the bottom and right.
+    private static void ThreeDimensionalBorder(StringBuilder output, Rgb color, bool leading,
+        double x, double top, double width, double height, bool horizontal, double pageHeight, int maxOutputBytes,
+        int sourceOffset, ref PdfAlphaStates alpha)
+    {
+        var dark = Darker(color);
+        var outer = leading ? dark : color;
+        var inner = leading ? color : dark;
+        var halfWidth = horizontal ? width : width / 2;
+        var halfHeight = horizontal ? height / 2 : height;
+        var first = leading ? outer : inner;
+        var second = leading ? inner : outer;
+        Rect(output, first, x, top, halfWidth, halfHeight, pageHeight, maxOutputBytes, sourceOffset, ref alpha);
+        Rect(output, second, horizontal ? x : x + halfWidth, horizontal ? top + halfHeight : top, halfWidth, halfHeight,
+            pageHeight, maxOutputBytes, sourceOffset, ref alpha);
+    }
+
+    private static Rgb Darker(Rgb color)
+    {
+        var v = Math.Max(color.R, Math.Max(color.G, color.B));
+        if (v <= 0) return color;
+        var multiplier = Math.Max(0, (v - 0.33) / v);
+        double Scale(double channel) => Math.Floor(channel * multiplier * 255.99998) / 255;
+        return new Rgb(Scale(color.R), Scale(color.G), Scale(color.B), color.A);
     }
 
     private static void Rect(StringBuilder output, Rgb color, double x, double top,

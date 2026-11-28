@@ -244,7 +244,9 @@ internal sealed class CssSelector(CssCompound[] parts, CssSpecificity specificit
                 var name = tokens[i++].Text.ToLowerInvariant();
                 var supported = name is "id" or "class" or "title" or "lang"
                     or "href" or "src" or "alt" or "hidden"
-                    || name.StartsWith("data-", StringComparison.Ordinal) && name.Length > 5;
+                    || name.StartsWith("data-", StringComparison.Ordinal) && name.Length > 5
+                    // A custom element takes any attribute (the page's own, such as variant or open).
+                    || type is not null && HtmlDocumentReader.IsCustomElement(type);
                 if (!supported)
                     throw CssTokens.Invalid("Only known static HTML attributes and data-* can be selected.", current.Offset);
                 var op = CssAttributeOperator.Presence;

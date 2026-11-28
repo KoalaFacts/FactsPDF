@@ -92,6 +92,8 @@ internal static class TextLines
                 start++;
                 continue;
             }
+            // A word break opportunity has no ink and no advance: it only ended the line segment.
+            if (first.Scalar == WordBreakOpportunity) { start++; continue; }
             // Charge each real decoration path before retaining the run;
             // a combined underline/strike/overline uses up to three commands.
             charge(1 + TextDecorationCommands.Count(first.Style.Decoration)
@@ -102,7 +104,8 @@ internal static class TextLines
                 utf16Length = 1; width = first.Width; end = start + 1;
             }
             while (first.Scalar != 9 && end < line.Glyphs.Count && !line.Glyphs[end].IsAtom && line.Glyphs[end].Style == first.Style
-                && ReferenceEquals(line.Glyphs[end].Font, first.Font) && line.Glyphs[end].Scalar != 9)
+                && ReferenceEquals(line.Glyphs[end].Font, first.Font) && line.Glyphs[end].Scalar != 9
+                && line.Glyphs[end].Scalar != WordBreakOpportunity)
             {
                 if ((end & 255) == 0) cancellation.ThrowIfCancellationRequested();
                 var glyph = line.Glyphs[end++];
@@ -756,6 +759,9 @@ internal static class TextLines
     private static Glyph Resolve(int scalar, TextStyle style, int sourceOffset, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved)
     {
+        // U+200B (what a wbr element reads as) is a zero-width soft wrap opportunity with nothing
+        // to draw, so it needs no font and never reaches the page (see AppendLine).
+        if (scalar == WordBreakOpportunity) return new(scalar, style, null, 0, sourceOffset);
         var role = FontRoles.Role(style);
         if (!resolved.TryGetValue((role, scalar), out var value))
         {
@@ -985,4 +991,6 @@ internal static class TextLines
             or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator or UnicodeCategory.OtherNotAssigned)
             throw new FactsPdfException("FPDF1305", $"U+{scalar:X4} needs text processing outside this simple horizontal Unicode subset (shaping/bidi/sequence support is not implemented).", sourceOffset);
     }
+    // The zero-width space a wbr element becomes; LineBreaker treats it as UAX #14 class ZW.
+    internal const int WordBreakOpportunity = 0x200B;
 }
