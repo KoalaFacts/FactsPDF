@@ -448,6 +448,19 @@ annotation and a warning. No status or count moves (full 45, partial 270, none 9
 `a7f0ad66cac08b0986ca75f7a64ba65cd76c1609913644a1924ca8f35bcc8ef2`. The entries below
 describe the state at their own dates.
 
+## The font shorthand
+
+A candidate change moves the `css.font` row from none to partial and revises the `css.font-family`
+and `css.line-height` limitations, which said the `font` shorthand was unsupported: `font` expands
+into the longhands at its position in the cascade, resets the ones it does not mention and fails
+`FPDF1202` for the values the longhands cannot draw and for system font keywords. Full 45, partial
+271, none 94; 418 records, 52 accepted CSS property names unchanged. Dataset SHA-256 (LF bytes, as
+`git show :site/data/compatibility.json` prints them):
+`dd9a7e03cfeb2573ae3ccaba89d6847858e3dca099ac41f1f50edb287160b1c1`; English layer
+`site/src/audit-english-font-shorthand.mjs`, ordered source-text SHA-256
+`493abbc2ebbdd395627b1e4a10871086b14368c3aca35ad7e0ae05426de9337d`. The entries below
+describe the state at their own dates.
+
 ## Block margin collapsing, list and table margins and cell paragraph padding
 
 A candidate change replaces strings in place for the `css.margin`, `css.margin-top`,

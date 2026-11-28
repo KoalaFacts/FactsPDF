@@ -677,6 +677,12 @@ independent code review, public/private new binary delivery, human page
 approval or commercial distribution rights.
 
 
+### The font shorthand
+
+`font` is the most common way report stylesheets set typography: `font:12pt F`, `font:bold italic 14px/2 F`, `font:16px/20px F` followed by `font-weight:bold`, `font:inherit` on a form control or a table cell. It expands into the longhands at the declaration's own place in the cascade (same specificity, `!important` and origin), and each part is compiled by the code of that longhand, so the PDF bytes equal those of the longhand declarations. What `font` does not mention is reset, as in Chrome: `font-weight:bold` followed by `font:12pt F` is regular again, `line-height:40pt` followed by `font:12pt F` is `normal` again, and a later `font-weight:bold` still wins over an earlier `font`. A CSS-wide keyword applies to every longhand it covers.
+
+`font-variant`, `font-stretch` and `font-family` keep no state in FactsPDF (fonts come from the supplied chains), so they are validated and dropped, and so are the `font-size-adjust`, `font-kerning` and `font-variant-*` longhands the shorthand also resets. Values the renderer cannot draw fail as the longhand does, at the offending token: `small-caps`, stretch keywords such as `condensed`, `oblique`, numeric weights that are not a hundred, a zero size. System font keywords (`caption`, `icon`, `menu`, `message-box`, `small-caption`, `status-bar`) need a platform font and fail `FPDF1202`. A shorthand that is invalid per the specifications (no size or family, a repeated keyword, a trailing comma) fails `FPDF1202` in strict mode and is dropped with a warning in non-strict mode. `font` inside a page-margin box is still `FPDF1201`; `line-height:normal` is still the fixed 1.2. Contract: [css-stylesheets.md](css-stylesheets.md#property-scope), tests: [`FontShorthandTests`](../tests/FactsPDF.Tests/FontShorthandTests.cs).
+
 ### Relative bold/light styling for report text (source-only)
 
 Use `font-weight:bolder` or `font-weight:lighter` in existing paragraphs, headings and spans to select the explicitly configured **bold** or **normal** TrueType role. For example, a bold inspection card can contain a lighter detail line and a bold status. The PDF really changes font metrics, embedded faces, text wrapping and pagination. This deliberately bounded two-role model does not synthesize CSS 100–900 weights or discover fonts: missing bold faces fail with `FPDF1507`, preserving the previous PDF.
@@ -691,7 +697,8 @@ uses the documented fixed 7.2/9/10/12/14.4/18/24pt scale.
 This works through existing cascade, `!important`, inherited text and
 actual PDF glyphs, wrapping and pagination, not merely CSS parsing.
 Unsupported values and computed sizes outside 1–144pt reject with
-`FPDF1202` and protect the previous PDF. No general font shorthand or
+`FPDF1202` and protect the previous PDF. The `font` shorthand expands into
+these longhands (see [the font shorthand](#the-font-shorthand)); no
 browser system-font selection is implied.
 
 The [40-entry paginated report](../examples/report-font-size-keywords.html),

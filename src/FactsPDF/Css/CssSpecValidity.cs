@@ -37,12 +37,27 @@ internal static class CssSpecValidity
         var terms = new List<Term>();
         if (!Terms(values, terms)) return false;
         if (terms.Count == 0) return true;
+        if (canonicalName == "font") return InvalidFont(values);
         var wide = 0;
         foreach (var term in terms) if (term.Kind == TermKind.Ident && WideKeyword(term.Text)) wide++;
         // Chrome reads a family list holding a CSS-wide keyword as one family name.
         if (wide > 0 && canonicalName != "font-family") return terms.Count > 1;
         if (!Grammars.TryGetValue(canonicalName, out var grammar)) return false;
         return !Matches(grammar, terms);
+    }
+
+    // The font shorthand is invalid when its structure does not parse or when a part is not a valid value of
+    // its longhand (checked with that longhand's grammar, so the two agree except where noted). System font keywords
+    // and CSS-wide keywords are valid.
+    private static bool InvalidFont(IReadOnlyList<CssSyntaxComponent> values)
+    {
+        var split = CssFontShorthand.Parse(values);
+        if (split.Form == CssFontShorthand.Form.Invalid) return true;
+        if (split.Form != CssFontShorthand.Form.Longhands) return false;
+        var family = CssFontShorthand.Slice(values, split.Family);
+        return InvalidDeclaration("font-size", "font-size", CssFontShorthand.Slice(values, split.Size))
+            || split.LineHeight.Present && InvalidDeclaration("line-height", "line-height", CssFontShorthand.Slice(values, split.LineHeight))
+            || InvalidDeclaration("font-family", "font-family", family);
     }
 
     /// <summary>Whether component values hold a bad string, a bad URL or an unmatched closing
