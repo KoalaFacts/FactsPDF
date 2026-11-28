@@ -283,7 +283,7 @@
     },
     {
       "id": "D1-width-refusal",
-      "html": "<style>body{margin:0}</style><img src=\"chart\" style=\"width:1000pt\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" style=\"box-sizing:border-box;max-width:4pt;padding:4pt\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },

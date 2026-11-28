@@ -130,7 +130,6 @@ public sealed class RootRelativeMarginTests
     [TestCase("<html style='margin-left:1rem'><body>A</body></html>", "FPDF1201")]
     [TestCase("<table><colgroup><col style='width:100pt'></colgroup><tbody><tr><td><p style='margin-left:1rem'>A</p></td></tr></tbody></table>", "FPDF1201")]
     [TestCase("<table><colgroup><col style='width:100pt'></colgroup><tbody><tr><td><p style='margin-top:1rem'>A</p></td></tr></tbody></table>", "FPDF1201")]
-    [TestCase("<p style='width:100pt;margin:0 50rem'>A</p>", "FPDF1302")]
     public void InvalidAndUnrenderableMarginsPreserveOriginalOutput(string html, string code)
         => Reject(html, code);
 }

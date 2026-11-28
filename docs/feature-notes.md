@@ -1947,3 +1947,13 @@ past `MaxPages`, and the existing resource `Hint:` line still
 follows. The library exposes the same value as `FactsPdfException.SourceOffset`.
 Source implemented at `306012538553815967d0e364ef95842648c446bb`; it is not part
 of the older retained private preview or a public binary.
+
+### Overflow, clipping and Chrome's line breaking (source implementation)
+
+Lines now break at the Unicode line breaking opportunities Chrome uses (UAX #14 with Chrome's tailoring: hyphen before a
+digit, slashes, `?`, CJK kinsoku, `keep-all`, `break-all`, `line-break`), `white-space` takes every value including
+`break-spaces` and applies to `span`, tabs follow `tab-size`, and text, boxes and images wider than their box overflow it
+instead of failing `FPDF1302`; content wider than the page prints scaled down (at most 1.5 times) as in Chrome.
+`overflow:hidden|clip` clips to the padding box with a PDF clip path, `text-overflow:ellipsis` ends overflowing nowrap lines,
+and `visibility:hidden|collapse` keeps the layout and paints nothing. `overflow:scroll` and an overflowing `auto` fail
+`FPDF1201` because Chrome prints scrollbars. Details: [Overflow, clipping and line breaking](css-stylesheets.md#overflow-clipping-and-line-breaking).

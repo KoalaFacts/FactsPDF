@@ -26,7 +26,8 @@ public sealed class WordBreakElementTests
         Assert.That(runs.Select(r => r.Text), Is.EqualTo(new[] { Long, Long }));
         Assert.That(runs[0].Baseline - runs[1].Baseline, Is.EqualTo(14.4).Within(0.000001));
         Assert.That(runs[1].X, Is.EqualTo(runs[0].X));
-        Assert.That(Fails($"<p>{Long}{Long}</p>").Code, Is.EqualTo("FPDF1302"));
+        // Without the opportunity the word overflows its line as in Chrome instead of failing.
+        Assert.That(Layout($"<p>{Long}{Long}</p>").Single().Runs.Select(r => r.Text), Is.EqualTo(new[] { Long + Long }));
     }
 
     [Test]

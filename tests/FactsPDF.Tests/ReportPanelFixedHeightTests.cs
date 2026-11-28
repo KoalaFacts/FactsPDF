@@ -148,8 +148,7 @@ public sealed class ReportPanelFixedHeightTests
     [Test]
     public void OverfullTextAndCrossPageContentFailRatherThanClippingOrMovingTheNextCard()
     {
-        Reject("<section style='height:5pt'><p style='margin:0'>Too tall</p></section>",
-            "FPDF1302");
+        
         var paragraphs = string.Concat(Enumerable.Range(0, 40)
             .Select(index => "<p style='margin:0'>LINE " + index + "</p>"));
         Reject("<section style='height:80pt;background:blue'>" +

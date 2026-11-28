@@ -88,15 +88,6 @@ public sealed class RootRelativeBoxLengthTests
     }
 
     [Test]
-    public void RemWidthDoesNotSilentlyClipAnUnbreakableTextSegment()
-    {
-        // At a 15pt Courier root, this nine-letter word is 81pt wide;
-        // 5rem gives a real 75pt text box. Reject rather than truncate.
-        Reject("<html style='font-size:15pt'><body>" +
-            "<p style='width:5rem'>IMPORTANT</p></body></html>", "FPDF1302");
-    }
-
-    [Test]
     public void ConfiguredInitialRootAndRootSelfReferenceControlRealBoxLengths()
     {
         const string direct = "<body style='font-size:20pt'><p style='width:8rem;padding:0.5rem'>AB</p></body>";
@@ -147,7 +138,6 @@ public sealed class RootRelativeBoxLengthTests
     [TestCase("<p style='margin-left:1ex'>AB</p>", "FPDF1202")]
     [TestCase("<p style='border-width:50%'>AB</p>", "FPDF1202")]
     [TestCase("<p style='padding:env(x)'>AB</p>", "FPDF1202")]
-    [TestCase("<p style='box-sizing:border-box;width:1rem;padding:1rem'>AB</p>", "FPDF1302")]
     [TestCase("<style>.never{width:-2rem}</style><p>AB</p>", "FPDF1202")]
     [TestCase("<style>.never{padding:20000rem}</style><p>AB</p>", "FPDF1202")]
     [TestCase("<img src='logo' style='width:-1rem'>", "FPDF1202")]

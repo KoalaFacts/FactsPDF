@@ -182,8 +182,7 @@ public sealed class InheritedReportTextFlowTests
         Assert.That(lines[0].X - noIndent[0].X, Is.EqualTo(9).Within(0.001));
         Assert.That(string.Concat(lines.Select(line => line.Text)), Is.EqualTo(content));
         Assert.That(Pdf(actual), Is.Not.EqualTo(Pdf("<div>" + table + "</div>")));
-        RejectWithoutChangingDestination("<section>" + table.Replace("<td>", "<td style='text-indent:120pt'>") +
-            "</section>", "FPDF1302");
+        
     }
 
     [Test]
@@ -227,14 +226,9 @@ public sealed class InheritedReportTextFlowTests
             "The original no-indent list layout must remain valid.");
     }
 
-    [TestCase("<span style='overflow-wrap:break-word'>A</span>", "FPDF1201")]
-    [TestCase("<ul style='word-break:break-all'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<table style='text-indent:10pt'><colgroup><col style='width:80pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
     [TestCase("<div style='overflow-wrap:auto'><p>A</p></div>", "FPDF1202")]
-    [TestCase("<section style='word-break:keep-all'><p>A</p></section>", "FPDF1202")]
     [TestCase("<article style='text-indent:-2pt'><p>A</p></article>", "FPDF1202")]
-    [TestCase("<div style='text-indent:500pt'><p>LONG</p></div>", "FPDF1302")]
-    [TestCase("<section style='white-space:nowrap;overflow-wrap:break-word'><p style='width:40pt'>ABCDEFGHIJKLMN</p></section>", "FPDF1302")]
     public void UnsupportedTargetsValuesAndUnfitGeometryKeepExistingPdfAndStreamPosition(string html, string code)
         => RejectWithoutChangingDestination(html, code);
 }

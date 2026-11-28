@@ -192,10 +192,6 @@ public sealed class ConversionTests
     [Test]
     public void EnforcesOutputLimitWithoutPartialOutput()
         => Fails("<p>A</p>", new PdfOptions { MaxOutputBytes = 64 }, "FPDF1401");
-    [Test]
-    public void RejectsUnbreakableWordsThatCannotFit()
-        => Fails("<p>" + new string('A', 100) + "</p>", new PdfOptions { PageWidth = 100, Margin = 20 }, "FPDF1302");
-
     private static void Fails(string html, PdfOptions options, string code)
     {
         using var output = new MemoryStream();

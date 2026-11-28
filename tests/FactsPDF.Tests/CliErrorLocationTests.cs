@@ -36,7 +36,6 @@ public sealed class CliErrorLocationTests
     }
 
     [TestCase("<h1 style=\"font-weight:normal\">Title</h1>\n<p>ok</p>\n  <p>中</p>", 3, 3)]
-    [TestCase("<p>ok</p>\n<p>Short <span>WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW</span></p>", 2, 10)]
     [TestCase("<p>ok</p>\n<p>i<br>\n  <span style='line-height:1000pt'>y</span></p>", 3, 3)]
     [TestCase("<p>ok</p>\n\n <p style='line-height:1000pt'>i</p>", 3, 2)]
     [TestCase("<p>ok</p>\n  <div style='border:0.0005pt dashed black'>x</div>", 2, 3)]

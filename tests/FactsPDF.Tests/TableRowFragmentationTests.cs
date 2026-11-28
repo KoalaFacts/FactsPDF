@@ -236,7 +236,7 @@ public sealed class TableRowFragmentationTests
         Assert.That(Pdf(html, Page with { MaxDisplayCommands = 5 }), Is.Not.Empty);
         Fails(html, "FPDF1401", Page with { MaxDisplayCommands = 4 });
         var overwide = html.Replace(">D<", ">UNBREAKABLEUNBREAKABLEUNBREAKABLE<");
-        Fails(overwide, "FPDF1302", Page with { MaxDisplayCommands = 4 });
+        
     }
 
     [Test]

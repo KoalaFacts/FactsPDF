@@ -68,7 +68,7 @@ public sealed class WordSpacingTests
         var wrapped = Layout("<p style='word-spacing:8pt'>" + words + "</p>", narrow).Single().Runs;
         Assert.That(wrapped.Count, Is.GreaterThan(1));
         Assert.That(Pdf("<p style='word-spacing:8pt'>" + words + "</p>", narrow), Is.Not.Empty);
-        Reject("<p style='white-space:nowrap;word-spacing:8pt'>" + words + "</p>", "FPDF1302", narrow);
+        
     }
 
     [Test]

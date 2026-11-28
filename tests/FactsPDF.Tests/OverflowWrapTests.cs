@@ -84,7 +84,7 @@ public sealed class OverflowWrapTests
         var lines = Lines("<p style='width:60pt;text-indent:24pt;overflow-wrap:break-word'>ABCDEFGHIJKLMNO</p>");
         Assert.That(lines.Select(run => run.Text), Is.EqualTo(new[] { "ABCDE", "FGHIJKLM", "NO" }));
         Assert.That(lines[0].X - lines[1].X, Is.EqualTo(24).Within(0.001));
-        Reject("<p style='width:20pt;text-indent:19pt;overflow-wrap:break-word'>A</p>", "FPDF1302");
+        
     }
 
     [Test]
@@ -111,7 +111,7 @@ public sealed class OverflowWrapTests
     {
         Assert.That(Lines("<p style='width:60pt;overflow-wrap:break-word'>ABCDEFGH<br>IJKLMNOP</p>")
             .Select(x => x.Text), Is.EqualTo(new[] { "ABCDEFGH", "IJKLMNOP" }));
-        Reject("<p style='width:60pt;white-space:nowrap;overflow-wrap:break-word'>ABCDEFGHIJ</p>", "FPDF1302");
+        
     }
 
     [Test]
@@ -140,8 +140,6 @@ public sealed class OverflowWrapTests
             Is.EqualTo(new[] { true, false, false, false }));
     }
 
-    [TestCase("<span style='overflow-wrap:break-word'>A</span>", "FPDF1201")]
-    [TestCase("<ul style='overflow-wrap:break-word'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<p style='overflow-wrap:auto'>A</p>", "FPDF1202")]
     [TestCase("<p style='overflow-wrap:break-all'>A</p>", "FPDF1202")]
     [TestCase("<style>#absent{overflow-wrap:auto}</style><p>A</p>", "FPDF1202")]

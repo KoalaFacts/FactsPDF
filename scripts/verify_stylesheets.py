@@ -134,13 +134,20 @@ def main():
         narrow_nowrap = temp / 'narrow-nowrap.html'
         narrow_nowrap.write_text("<p style='width:72pt;white-space:nowrap'>Item paid in full</p>",
                                  encoding='utf-8')
+        # Chrome keeps an overwide nowrap label on one line and lets it overflow its box.
+        run(exe, narrow_nowrap, narrow_pdf, '--overwrite')
+        run('qpdf', '--check', narrow_pdf)
+        if 'Item paid in full' not in run('pdftotext', '-raw', narrow_pdf, '-').decode('utf-8').splitlines():
+            raise AssertionError('Native AOT overwide nowrap label did not stay on one line')
+        unsupported = temp / 'unsupported.html'
+        unsupported.write_text('<marquee>Item paid in full</marquee>', encoding='utf-8')
         narrow_pdf.write_bytes(b'retained-report')
-        failed = subprocess.run([str(exe), str(narrow_nowrap), str(narrow_pdf), '--overwrite'],
+        failed = subprocess.run([str(exe), str(unsupported), str(narrow_pdf), '--overwrite'],
                                 capture_output=True, timeout=120)
-        if failed.returncode != 3 or b'FPDF1302' not in failed.stderr or failed.stdout:
-            raise AssertionError('Native AOT nowrap did not reject a truly overwide label')
+        if failed.returncode != 3 or b'FPDF1102' not in failed.stderr or failed.stdout:
+            raise AssertionError('Native AOT did not reject an unsupported element')
         if narrow_pdf.read_bytes() != b'retained-report':
-            raise AssertionError('Overwide nowrap replaced an existing report')
+            raise AssertionError('A failed conversion replaced an existing report')
 
         # This actual commercial report must render a first-line inset. An
         # independently authored 18pt projection must be byte-identical to
@@ -164,12 +171,12 @@ def main():
             raise AssertionError('Native first-line indentation lost or altered report text')
         indent_bad = temp / 'invalid-indent.html'
         indent_recovery = temp / 'indent-recovery.pdf'
-        indent_bad.write_text("<p style='width:40pt;text-indent:35pt'>LONG</p>", encoding='utf-8')
+        indent_bad.write_text("<p style='width:40pt;text-indent:35pt'><marquee>LONG</marquee></p>", encoding='utf-8')
         indent_recovery.write_bytes(b'keep-original')
         indent_failure = subprocess.run([str(exe), str(indent_bad), str(indent_recovery), '--overwrite'],
                                         capture_output=True, timeout=120)
-        if indent_failure.returncode != 3 or b'FPDF1302' not in indent_failure.stderr or indent_failure.stdout:
-            raise AssertionError('Native overindented first word was not rejected cleanly')
+        if indent_failure.returncode != 3 or b'FPDF1102' not in indent_failure.stderr or indent_failure.stdout:
+            raise AssertionError('Native indented unsupported element was not rejected cleanly')
         if indent_recovery.read_bytes() != b'keep-original':
             raise AssertionError('Native text-indent failure overwrote the destination')
 
@@ -480,7 +487,6 @@ def main():
         recovery = temp / 'border-box-recovery.pdf'
         for css, code in (
             ("box-sizing:padding-box", b'FPDF1202'),
-            ("box-sizing:border-box;width:10pt;padding:6pt", b'FPDF1302')
         ):
             bad.write_text("<div style='" + css + "'>Invalid</div>", encoding='utf-8')
             recovery.write_bytes(b'keep-existing')
@@ -575,8 +581,6 @@ def main():
         bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
         for invalid_css, code in (
             ('max-width:auto', b'FPDF1202'),
-            ('min-width:300mm', b'FPDF1302'),
-            ('box-sizing:border-box;max-width:2pt;padding:10pt', b'FPDF1302')
         ):
             bad.write_text("<p style='" + invalid_css + "'>Not generated</p>", encoding='utf-8')
             destination.write_bytes(b'keep-existing')
@@ -602,10 +606,11 @@ def main():
         page_line = next((line for line in info.splitlines() if line.startswith('Pages:')), None)
         if page_line is None or int(page_line.split(':', 1)[1].strip()) < 2:
             raise AssertionError('Native rem report did not paginate: ' + info)
-        visible = ' '.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
+        # Compare without whitespace: Chrome may break the reference after a hyphen, as FactsPDF now does.
+        visible = ''.join(run('pdftotext', '-raw', actual, '-').decode('utf-8').split())
         for phrase in ('Business Service Report', 'Example Facilities Pty Ltd',
                        'AB-WA-1042', 'Service record'):
-            if phrase not in visible:
+            if ''.join(phrase.split()) not in visible:
                 raise AssertionError('Native rem PDF lost searchable text: ' + phrase)
         bad, destination = temp / 'invalid.html', temp / 'preserved.pdf'
         for declaration in ('font-size:0rem', 'font-size:1000rem',
@@ -647,8 +652,7 @@ def main():
         for declaration, error in (
             ('width:20000rem', b'FPDF1202'),
             ('padding:-1rem', b'FPDF1202'),
-            ('margin-left:1ex', b'FPDF1202'),
-            ('box-sizing:border-box;width:1rem;padding:1rem', b'FPDF1302')
+            ('margin-left:1ex', b'FPDF1202')
         ):
             bad.write_text("<p style='" + declaration + "'>Protected report</p>", encoding='utf-8')
             destination.write_bytes(b'keep-existing')
@@ -683,8 +687,7 @@ def main():
                 raise AssertionError('Native rem margin report lost text: ' + phrase)
         bad, dest = temp / 'bad.html', temp / 'existing.pdf'
         for declaration, code in (('margin:-1rem', b'FPDF1202'),
-                                  ('margin-left:1ex', b'FPDF1202'),
-                                  ('width:100pt;margin:0 50rem', b'FPDF1302')):
+                                  ('margin-left:1ex', b'FPDF1202')):
             bad.write_text("<p style='" + declaration + "'>Keep existing</p>", encoding='utf-8')
             dest.write_bytes(b'keep-existing')
             failure = subprocess.run([str(exe), str(bad), str(dest), '--overwrite'],
@@ -718,7 +721,6 @@ def main():
         bad, destination = temp / 'bad-em.html', temp / 'previous.pdf'
         for document, code in (
             ("<p style='width:-1em'>Keep existing</p>", b'FPDF1202'),
-            ("<p style='font-size:10pt;width:4em'>IMPORTANT</p>", b'FPDF1302'),
             ("<table><colgroup><col style='width:100pt'></colgroup><tbody>"
              "<tr><td><p style='margin-left:1em'>A</p></td></tr></tbody></table>",
              b'FPDF1201')
@@ -757,8 +759,7 @@ def main():
         bad, destination = temp / 'invalid.html', temp / 'existing.pdf'
         for declaration, code in (('letter-spacing:3em', b'FPDF1202'),
                                   ('word-spacing:-0.1rem', b'FPDF1202'),
-                                  ('word-spacing:10%', b'FPDF1202'),
-                                  ('text-indent:60rem', b'FPDF1302')):
+                                  ('word-spacing:10%', b'FPDF1202')):
             bad.write_text("<html style='font-size:14pt'><body><p style='" +
                            declaration + "'>Keep existing</p></body></html>", encoding='utf-8')
             destination.write_bytes(b'keep-existing')
@@ -792,10 +793,7 @@ def main():
                 raise AssertionError('Native overflow-wrap dropped searchable report text: ' + marker)
         bad, destination = temp / 'invalid.html', temp / 'prior.pdf'
         for html, code in (
-            ("<p style='width:20pt;overflow-wrap:normal'>ABCDEFGHIJ</p>", b'FPDF1302'),
             ("<p style='overflow-wrap:auto'>A</p>", b'FPDF1202'),
-            ("<span style='overflow-wrap:break-word'>A</span>", b'FPDF1201'),
-            ("<p style='font-size:100pt;width:20pt;overflow-wrap:break-word'>W</p>", b'FPDF1302')
         ):
             bad.write_text(html, encoding='utf-8')
             destination.write_bytes(b'keep-existing')
@@ -832,7 +830,6 @@ def main():
         for html, code in (
             ("<section style='margin-top:auto'>A</section>", b'FPDF1202'),
             ("<article style='margin-bottom:-10%'>A</article>", b'FPDF1202'),
-            ("<div style='width:240pt;margin-left:400pt'>A</div>", b'FPDF1302'),
             ("<section style='margin-left:env(x)'>A</section>", b'FPDF1202'),
             ("<html style='margin-left:1pt'>A</html>", b'FPDF1201')
         ):
@@ -1134,8 +1131,7 @@ def main():
             ("<section style='margin-block:0 auto'>A</section>", b'FPDF1202'),
             ("<section style='padding-inline:env(x)'>A</section>", b'FPDF1202'),
             ("<section style='margin-inline:-1pt'>A</section>", b'FPDF1202'),
-            ("<html style='margin-inline:4pt'>A</html>", b'FPDF1201'),
-            ("<p style='width:540pt;margin-inline:20pt'>A</p>", b'FPDF1302')
+            ("<html style='margin-inline:4pt'>A</html>", b'FPDF1201')
         ):
             bad.write_text(html, encoding='utf-8')
             protected.write_bytes(b'original-pdf')
@@ -1179,8 +1175,7 @@ def main():
             ("<section style='padding-inline-end:env(x)'>A</section>", b'FPDF1202'),
             ("<section style='margin-inline-start:1e-999pt'>A</section>", b'FPDF1202'),
             ("<section style='padding-inline-start:1e-999px'>A</section>", b'FPDF1202'),
-            ("<span style='padding-block-end:2pt'>A</span>", b'FPDF1201'),
-            ("<section style='width:999pt;margin-inline-end:auto'>A</section>", b'FPDF1302')
+            ("<span style='padding-block-end:2pt'>A</span>", b'FPDF1201')
         ):
             bad.write_text(html, encoding='utf-8')
             existing.write_bytes(b'original-logical-longhand-report')
@@ -1219,8 +1214,7 @@ def main():
         existing = temp / 'existing.pdf'
         for html, code in (
             ("<ol><blockquote>Bad list nesting</blockquote></ol>", b'FPDF1101'),
-            ("<blockquote style='margin-top:-2pt'>Bad margin</blockquote>", b'FPDF1202'),
-            ("<blockquote style='width:990pt'>Bad width</blockquote>", b'FPDF1302')
+            ("<blockquote style='margin-top:-2pt'>Bad margin</blockquote>", b'FPDF1202')
         ):
             bad.write_text(html, encoding='utf-8')
             existing.write_bytes(b'previous-quote-report')

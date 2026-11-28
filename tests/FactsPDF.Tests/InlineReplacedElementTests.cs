@@ -209,7 +209,6 @@ public sealed class InlineReplacedElementTests
     [TestCase("<p>A <span style='vertical-align:2pt'>B</span></p>", "FPDF1201")]
     [TestCase("<table><colgroup><col style='width:100pt'></colgroup><tbody><tr><td style='vertical-align:text-top'>A</td></tr></tbody></table>", "FPDF1202")]
     [TestCase("<table><tbody><tr><td>A<svg width='50%' height='10'></svg></td></tr></tbody></table>", "FPDF1302")]
-    [TestCase("<div style='width:20pt'><img src='gray'></div>", "FPDF1302")]
     [TestCase("<style>.pic{display:inline}</style><p>A</p>", "FPDF1202")]
     public void UnsupportedInlineReplacedInputsFailExplicitly(string html, string code) => Reject(html, code);
 

@@ -134,14 +134,19 @@ internal static class UnicodePdfSerializer
             for (var i = 0; i < pages.Count; i++)
             {
                 cancellation.ThrowIfCancellationRequested(); content.Clear(); alpha.Clear();
-                PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha);
-                PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha);
+                if (o.PrintShrink != 1) content.Append("q ").AppendInvariant(1 / o.PrintShrink, "0.#######").Append(" 0 0 ").AppendInvariant(1 / o.PrintShrink, "0.#######").Append(" 0 0 cm\n");
+                PdfPaintSerializer.Append(content, pages[i].PaintBoxes, o.PageHeight, o.MaxOutputBytes, cancellation, ref alpha, pages[i].Clips);
+                PdfPaintSerializer.AppendDiscs(content, pages[i].Discs, o.MaxOutputBytes, cancellation, ref alpha,
+                    pages[i].Clips.Count == 0 ? null : new PdfClipping(pages[i], PdfClipping.Kind.Discs, o.PageHeight));
                 images.Append(content, pages[i], o, cancellation, ref alpha);
                 // Tc survives BT/ET in PDF text state. Track transitions,
                 // including back to zero, without touching legacy byte output.
                 var previousTracking = 0d;
+                var runClipping = pages[i].Clips.Count == 0 ? null : new PdfClipping(pages[i], PdfClipping.Kind.Runs, o.PageHeight);
+                var runIndex = 0;
                 foreach (var run in pages[i].Runs)
                 {
+                    runClipping?.Enter(content, runIndex++);
                     var use = run.Font is null ? null : byFont[run.Font]; var color = run.Style.Color;
                     if (color.IsInvisible)
                     {
@@ -173,8 +178,10 @@ internal static class UnicodePdfSerializer
                     if (content.Length > o.MaxOutputBytes) throw new FactsPdfException("FPDF1401", "PDF content exceeds MaxOutputBytes.");
                 }
                 var pageId = firstPage + 2 * i;
-                page.Clear().Append(pageId).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth, Number).Append(' ')
-                    .AppendInvariant(o.PageHeight, Number).Append("] /Resources << /Font << ").Append(resources).Append(" >>");
+                runClipping?.Finish(content);
+                if (o.PrintShrink != 1) content.Append("Q\n");
+                page.Clear().Append(pageId).Append(" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ").AppendInvariant(o.PageWidth / o.PrintShrink, Number).Append(' ')
+                    .AppendInvariant(o.PageHeight / o.PrintShrink, Number).Append("] /Resources << /Font << ").Append(resources).Append(" >>");
                 images.AppendResources(page, pages[i], firstImage, o.MaxOutputBytes, cancellation);
                 alpha.AppendResources(page);
                 page.Append(" >> /Contents ").Append(pageId + 1).Append(" 0 R");

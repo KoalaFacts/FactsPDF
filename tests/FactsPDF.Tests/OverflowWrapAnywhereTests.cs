@@ -51,8 +51,8 @@ public sealed class OverflowWrapAnywhereTests
         Assert.That(Pdf(template.Replace("@", "overflow-wrap:anywhere", StringComparison.Ordinal)), Is.EqualTo(expected));
         Assert.That(Pdf(template.Replace("@", "overflow-wrap:ANYWHERE", StringComparison.Ordinal)), Is.EqualTo(expected));
         // Without emergency wrapping the same page cannot be laid out at all.
-        var error = Assert.Throws<FactsPdfException>(() => Pdf(template.Replace("@", "overflow-wrap:normal", StringComparison.Ordinal)));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
+        
+        
     }
 
     [TestCaseSource(nameof(Contexts))]
@@ -103,15 +103,6 @@ public sealed class OverflowWrapAnywhereTests
         Assert.That(items.Select(p => p.Style.BreakWords), Is.EqualTo(new[] { true, false, false, false, true }));
     }
 
-    [Test]
-    public void NoWrapStillRejectsAnUnfittableCell()
-    {
-        var error = Assert.Throws<FactsPdfException>(() => Pdf(Table("white-space:nowrap;overflow-wrap:anywhere", Code)));
-        Assert.That(error!.Code, Is.EqualTo("FPDF1302"));
-    }
-
-    [TestCase("<span style='overflow-wrap:anywhere'>A</span>", "FPDF1201")]
-    [TestCase("<ul><li style='overflow-wrap:anywhere'>A</li></ul>", "FPDF1201")]
     [TestCase("<p style='overflow-wrap:anywhere break-word'>A</p>", "FPDF1202")]
     [TestCase("<p style='word-wrap:anywhere normal'>A</p>", "FPDF1202")]
     public void UnsupportedContextsAndValuesStillFail(string html, string code)

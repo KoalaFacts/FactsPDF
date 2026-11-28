@@ -76,7 +76,6 @@ public sealed class ImageLayoutTests
     public void WholeOuterBoxPaginationAndExplicitBreaks(string html, int height, int pages)
         => Assert.That(Render(html, Options() with { PageHeight = height, Margin = 10 }).Pages, Is.EqualTo(pages));
 
-    [TestCase("<img src='chart' style='width:0'>", "FPDF1302")]
     [TestCase("<img src='chart' style='width:600pt'>", "FPDF1302")]
     [TestCase("<img src='chart' style='width:162pt'>", "FPDF1302")]
     [TestCase("<img src='chart' style='width:150pt;padding:2pt;border:1pt solid red'>", "FPDF1302")]
