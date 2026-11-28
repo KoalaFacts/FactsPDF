@@ -140,6 +140,14 @@ internal static class CssSyntaxAdapter
                 if (IsInteractionOnly(name))
                 {
                     ValidateInteractionOnly(name, node);
+                    // An animation shows its time-zero keyframe state, so its longhands cascade (CssAnimations).
+                    if (CssAnimations.IsCarried(name))
+                        foreach (var (target, longhand, value) in CssAnimations.Expand(node, name))
+                        {
+                            if (value == "revert-layer") budget.UsesRevertLayer = true;
+                            output.Add(CssDeclaration.Create(target, longhand, value, node.Important,
+                                budget.Declaration(node.Span.Start), node.Span.Start));
+                        }
                     continue;
                 }
                 // A math function (calc(), min(), max(), clamp()) or a viewport length resolves against the

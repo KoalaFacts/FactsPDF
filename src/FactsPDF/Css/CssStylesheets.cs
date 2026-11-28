@@ -39,7 +39,7 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.JustifySelf + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.AnimationTimingFunction + 1];
 
     /// <summary>The value of the text-align declaration that won the cascade for the element the
     /// last <see cref="Compute"/> call computed, or null when none applied to it.</summary>
@@ -402,6 +402,10 @@ internal sealed class CssStylesheets
     }
 
     private readonly Layer layerRoot = new("", null);
+    // The valid @keyframes rules by name (the last of a name wins), and the declarations of their 0% and
+    // 100% keyframes compiled when an animation first shows one.
+    private readonly Dictionary<string, CssAtRuleNode> keyframes = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Name, int Offset), CssDeclaration[]> keyframeStates = [];
     private int layerCount;
 
     private Layer LayerAt(Layer? scope, string name)
@@ -490,6 +494,102 @@ internal sealed class CssStylesheets
         return true;
     }
 
+    private void RegisterKeyframes(CssAtRuleNode at)
+    {
+        var name = at.Prelude.First(x => x is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) as CssTokenComponent;
+        var key = name!.Token.Value;
+        keyframes[key] = at;
+        keyframeStates.Remove((key, 0));
+        keyframeStates.Remove((key, 100));
+    }
+
+    // The offsets a keyframe selector names: from and to are 0% and 100%.
+    private static List<double> KeyframeOffsets(IReadOnlyList<CssSyntaxComponent> prelude)
+    {
+        var offsets = new List<double>();
+        foreach (var item in prelude)
+        {
+            if (item is not CssTokenComponent { Token: var token }) continue;
+            if (token.Kind == CssSyntaxTokenKind.Ident) offsets.Add(token.Value.Equals("from", StringComparison.OrdinalIgnoreCase) ? 0 : 100);
+            else if (token.Kind == CssSyntaxTokenKind.Percentage
+                && double.TryParse(token.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var percent))
+                offsets.Add(percent);
+        }
+        return offsets;
+    }
+
+    // The declarations of the keyframes at one offset (0 or 100), in the order they are written, as the
+    // animations origin lays them over the cascade. !important declarations in a keyframe are invalid, and
+    // the animation and transition properties are not animated. A value that is the identity transform
+    // changes nothing and is skipped; any other value the renderer cannot honour fails like the same
+    // declaration in a style rule.
+    private CssDeclaration[] KeyframeState(string name, int offset, string element)
+    {
+        if (keyframeStates.TryGetValue((name, offset), out var cached)) return cached;
+        var nodes = new List<CssDeclarationNode>();
+        foreach (var content in keyframes[name].Contents!)
+        {
+            if (content is not CssQualifiedRuleNode rule || !KeyframeOffsets(rule.Prelude).Contains(offset)) continue;
+            foreach (var item in rule.Contents)
+            {
+                if (item is not CssDeclarationNode declaration || declaration.Important) continue;
+                var property = declaration.Name.ToLowerInvariant();
+                if (property.StartsWith("animation", StringComparison.Ordinal) || property.StartsWith("-webkit-animation", StringComparison.Ordinal)
+                    || property.StartsWith("transition", StringComparison.Ordinal) || property.StartsWith("-webkit-transition", StringComparison.Ordinal)
+                    || CssTransforms.IsIdentity(property, declaration.Values)) continue;
+                nodes.Add(declaration);
+            }
+        }
+        CssDeclaration[] compiled;
+        try { compiled = CssSyntaxAdapter.CompileKnownDeclarations(nodes, budget, hostElement: element, fixedOrder: 1, recover: false); }
+        catch (FactsPdfException error) when (error.Code != "FPDF1205")
+        {
+            var reason = error.Message.StartsWith(error.Code + ": ", StringComparison.Ordinal) ? error.Message[(error.Code.Length + 2)..] : error.Message;
+            throw new FactsPdfException(error.Code, $"@keyframes {name} at {(offset == 0 ? "from" : "to")}, shown by the animation at print time: {reason}", error.SourceOffset);
+        }
+        if (compiled.Any(d => d.Property is CssProperty.Pending or CssProperty.Custom))
+            throw new FactsPdfException("FPDF1202", $"@keyframes {name} uses var() or math in a keyframe the animation shows; write the value out.", keyframes[name].Span.Start);
+        keyframeStates[(name, offset)] = compiled;
+        return compiled;
+    }
+
+    // The keyframe declarations the element's animations show at time zero, in animation order (a later
+    // animation overrides an earlier one for the same property).
+    private List<CssDeclaration>? AnimationState(string element)
+    {
+        string Value(CssProperty property, string initial)
+        {
+            if (winners[(int)property] is not { } winner) return initial;
+            var value = winner.Declaration.Value;
+            if (value is "initial" or "unset") return initial;
+            if (value == "inherit")
+                throw new FactsPdfException("FPDF1202", "inherit for an animation property is not supported: animations apply to the element itself.", winner.Declaration.Offset);
+            return value;
+        }
+        var names = CssAnimations.Split(Value(CssProperty.AnimationName, "none"));
+        var durations = CssAnimations.Split(Value(CssProperty.AnimationDuration, "0s"));
+        var delays = CssAnimations.Split(Value(CssProperty.AnimationDelay, "0s"));
+        var counts = CssAnimations.Split(Value(CssProperty.AnimationIterationCount, "1"));
+        var directions = CssAnimations.Split(Value(CssProperty.AnimationDirection, "normal"));
+        var fills = CssAnimations.Split(Value(CssProperty.AnimationFillMode, "none"));
+        var easings = CssAnimations.Split(Value(CssProperty.AnimationTimingFunction, "ease"));
+        List<CssDeclaration>? result = null;
+        for (var i = 0; i < names.Length; i++)
+        {
+            var name = names[i];
+            if (name == "none" || !keyframes.ContainsKey(name)) continue;
+            var outcome = CssAnimations.StateAtZero(CssAnimations.Layer(durations, i), CssAnimations.Layer(delays, i), CssAnimations.Layer(counts, i),
+                CssAnimations.Layer(directions, i), CssAnimations.Layer(fills, i), CssAnimations.Layer(easings, i));
+            if (outcome == CssAnimations.Outcome.None) continue;
+            if (outcome == CssAnimations.Outcome.Interpolated)
+                throw new FactsPdfException("FPDF1202",
+                    $"The animation {name} would print a state between its keyframes (a delay or iteration count that ends inside an iteration, or a step easing that jumps at the start): only the first and last keyframe states are supported.",
+                    keyframes[name].Span.Start);
+            (result ??= []).AddRange(KeyframeState(name, outcome == CssAnimations.Outcome.From ? 0 : 100, element));
+        }
+        return result;
+    }
+
     private void ParseRules(IReadOnlyList<CssRuleNode> rules)
         => ParseBlock(rules, parents: null, layer: null);
 
@@ -537,7 +637,7 @@ internal sealed class CssStylesheets
         {
             // A malformed @keyframes rule (or keyframe) is dropped by a browser; every
             // keyframe is dropped here anyway, so the page is the same either way.
-            try { ValidateKeyframes(at); }
+            try { ValidateKeyframes(at); RegisterKeyframes(at); }
             catch (FactsPdfException error) when (budget.Warnings is { } warnings) { warnings.Add(error); }
             return;
         }
@@ -1125,6 +1225,11 @@ internal sealed class CssStylesheets
             return best;
         }
 
+        // Animations show their time-zero keyframe state: declarations of the animations origin, above every
+        // normal declaration and below !important ones.
+        if (keyframes.Count > 0 && winners[(int)CssProperty.AnimationName] is not null && AnimationState(element.Name) is { } shown)
+            foreach (var declaration in shown) Offer(declaration, true, new CssSpecificity(int.MaxValue, 0, 0), int.MaxValue);
+
         // The element's computed font size from the font-size declaration that won so far.
         double ElementFontSize()
         {
@@ -1215,7 +1320,7 @@ internal sealed class CssStylesheets
         {
             if (winners[index] is not { } winner) continue;
             var declaration = winner.Declaration;
-            if (declaration.Property == CssProperty.Content) continue;
+            if (declaration.Property == CssProperty.Content || declaration.Property >= CssProperty.AnimationName) continue;
             if (WritesBox(subject, declaration.Property))
             {
                 if (boxShared) continue;
