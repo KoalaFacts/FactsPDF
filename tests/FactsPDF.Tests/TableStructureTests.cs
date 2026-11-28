@@ -72,8 +72,10 @@ public sealed class TableStructureTests
     [TestCase("<table>" + Columns + "<tbody><tr>A<td>B</td></tr></tbody></table>")]
     [TestCase("<table>" + Columns + "<style>td{color:red}</style><tbody><tr><td>A</td></tr></tbody></table>")]
     [TestCase("<table>" + Columns + "<tbody><tr><td><style>td{color:red}</style>A</td></tr></tbody></table>")]
-    [TestCase("<table>" + Columns + "<tbody><tr><td>A</tbody></table>")]
-    [TestCase("<table>" + Columns + "<tbody><tr><td>A")]
+    // Omitted cell and row end tags are implied (HtmlTreeBuilderTests), except around a formatting
+    // element the parser would reopen.
+    [TestCase("<table>" + Columns + "<tbody><tr><td><b>A</tbody></table>")]
+    [TestCase("<table>" + Columns + "<tbody><tr><td><i>A</td></tr></tbody></table>")]
     [TestCase("<table/>")]
     [TestCase("<colgroup><col style='width:10pt'></colgroup>")]
     [TestCase("<col style='width:10pt'>")]

@@ -220,7 +220,7 @@ public sealed class TableCellListTests
         foreach (var html in new[]
         {
             "<table><tr><td><ul><li><table><tr><td>x</td></tr></table></li></ul></td></tr></table>",
-            "<table><tr><td><ul><li><td>x</td></li></ul></td></tr></table>",
+            "<table><tr><td><ul><li><b><td>x</td></b></li></ul></td></tr></table>",
         })
         {
             using var output = new MemoryStream();

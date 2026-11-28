@@ -32,12 +32,12 @@ public sealed class HtmlSyntaxLeniencyTests
         => Assert.That(Pdf(html), Is.EqualTo(Pdf(withoutSlash)));
 
     [Test]
-    public void ADivOpenedWithASlashStillNeedsItsEndTag()
+    public void ADivOpenedWithASlashStaysOpenUntilTheEndOfInput()
     {
-        // The element stays open, as in the HTML parser: the page is incomplete exactly like <div>A.
-        var ex = Assert.Throws<FactsPdfException>(() => Pdf("<div/>A"))!;
-        Assert.That(ex.Code, Is.EqualTo("FPDF1101"));
-        Assert.That(Assert.Throws<FactsPdfException>(() => Pdf("<div>A"))!.Code, Is.EqualTo("FPDF1101"));
+        // The element stays open, as in the HTML parser, and the end of the input closes it, exactly
+        // like <div>A.
+        Assert.That(Pdf("<div/>A"), Is.EqualTo(Pdf("<div>A</div>")));
+        Assert.That(Pdf("<div>A"), Is.EqualTo(Pdf("<div>A</div>")));
     }
 
     [Test]

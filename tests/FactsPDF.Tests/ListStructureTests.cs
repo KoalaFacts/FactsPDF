@@ -71,9 +71,9 @@ public sealed class ListStructureTests
     [TestCase("<ol><ul></ul></ol>")]
     [TestCase("<ol><style>p{color:red}</style></ol>")]
     [TestCase("<ol><li><ul><li><ol></ol></li></ul></li></ol>")]
-    [TestCase("<ol><li><span>A<li>B</ol>")]
-    [TestCase("<ol><li><div>A<li>B</ol>")]
-    [TestCase("<ol><li>A")]
+    // The next li would close a formatting element the parser reopens in it (adoption agency).
+    [TestCase("<ol><li><b>A<li>B</ol>")]
+    [TestCase("<ol><li><strong>A</ol>B")]
     public void InvalidListStructureProtectsOutput(string html) => Fails(html, "FPDF1101");
 
     [TestCase("<ol start='0'><li>A</li></ol>")]
