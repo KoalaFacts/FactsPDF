@@ -12,8 +12,9 @@ public sealed class TransparentBorderColorTests
 {
     private static readonly PdfOptions Options = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // The implied body is the document root's only child; the element under test is its only child.
     private static BlockNode Block(string html)
-        => (BlockNode)HtmlDocumentReader.ReadTree(html, Options, default).Children.Single();
+        => (BlockNode)((BlockNode)HtmlDocumentReader.ReadTree(html, Options, default).Children.Single()).Children.Single();
 
     private static string Render(string html)
     {

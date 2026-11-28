@@ -25,7 +25,7 @@ public sealed class OpaqueAlphaHexColorTests
     [TestCase("#23446BFF", "#23446b")]
     public void OpaqueAlphaPaintsLikeTheOpaqueForm(string withAlpha, string opaque)
     {
-        string Page(string c) => $"<style>h1{{color:{c}}}</style><h1>Total</h1>" +
+        string Page(string c) => $"<style>h1{{font-weight:normal;color:{c}}}</style><h1>Total</h1>" +
             $"<div style='background:{c};border:2pt dashed {c};text-decoration:underline {c}'>A</div>" +
             $"<p style='color:{c}'>B</p>";
         Assert.That(Render(Page(withAlpha)), Is.EqualTo(Render(Page(opaque))));

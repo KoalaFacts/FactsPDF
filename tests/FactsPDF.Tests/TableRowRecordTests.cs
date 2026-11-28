@@ -9,9 +9,12 @@ namespace FactsPDF.Tests;
 [NonParallelizable]
 public sealed class TableRowRecordTests
 {
+    // The 520pt table must fit the default page, which the 8px body margin would narrow.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static string Table(int rows, string cell)
     {
-        var html = new StringBuilder("<table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
+        var html = new StringBuilder(NoBodyMargin + "<table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
             + "<col style=\"width:140pt\"></colgroup><tbody>");
         for (var i = 0; i < rows; i++) html.Append("<tr>").Append(cell).Append(cell).Append(cell).Append("</tr>");
         return html.Append("</tbody></table>").ToString();
@@ -48,7 +51,7 @@ public sealed class TableRowRecordTests
     [Test]
     public void PaintedCellsStillPaintTheirBorders()
     {
-        var html = new StringBuilder("<table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
+        var html = new StringBuilder(NoBodyMargin + "<table style=\"width:520pt\"><colgroup><col style=\"width:80pt\"><col style=\"width:300pt\">"
             + "<col style=\"width:140pt\"></colgroup><tbody>");
         for (var i = 0; i < 3; i++)
             html.Append("<tr><td style=\"padding:3pt\">AB</td><td style=\"border:0.5pt solid #789\">AB</td>"

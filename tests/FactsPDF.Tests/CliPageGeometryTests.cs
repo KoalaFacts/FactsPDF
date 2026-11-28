@@ -8,7 +8,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class CliPageGeometryTests
 {
-    private static string Html => "<h1>Quarterly report</h1>" +
+    private static string Html => "<h1 style='font-weight:normal'>Quarterly report</h1>" +
         string.Concat(Enumerable.Range(1, 100).Select(i =>
             $"<p>Invoice {i:D3} - itemised charges for the accounting period.</p>"));
 

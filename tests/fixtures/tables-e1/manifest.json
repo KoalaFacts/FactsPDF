@@ -4,7 +4,7 @@
     {
       "id": "points",
       "file": "points.html",
-      "sha256": "e5eba9c76249e8624ff5db0fae504b0407342b6ca6738b222cfa9cc7dbac32dc",
+      "sha256": "e08a83d6ef7c591da184fd2886bfb8bc0cb53ba0b94abf4669d2cc3db64512bb",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
         "pages": 1,
@@ -50,7 +50,7 @@
     {
       "id": "percentages",
       "file": "percentages.html",
-      "sha256": "ae3345815cfb8330c5f45845be418e6534d56e7402d7494ebaf079054d3c4541",
+      "sha256": "5bb613b260b704f6b56e9b55961ba737167b3c3c3eab0d71700b24e75a1d440b",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
         "pages": 1,
@@ -96,7 +96,7 @@
     {
       "id": "missing-width",
       "file": "missing-width.html",
-      "sha256": "8642413a99a08e4c4fe47333d8ac4131e9f4641352a8fd8f701b07ce75797b59",
+      "sha256": "c9777af48224938ad731ef686e6067ed4c6d38301eb2a5cd39a9b0458ef69437",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
         "pages": 1,
@@ -187,7 +187,7 @@
     {
       "id": "missing-body",
       "file": "missing-body.html",
-      "sha256": "ef955d094a525c8464245413e15702235a26099e84f9e5df0c3c84909c8ce3a2",
+      "sha256": "e552466668bd5b9729c37b6b48fcd697d317ab5fe5504b8cfbabfa57311b0873",
       "historicalPreparationCode": "FPDF1102",
       "expected": {
         "pages": 1,

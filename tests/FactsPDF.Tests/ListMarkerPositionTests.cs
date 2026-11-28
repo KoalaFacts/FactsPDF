@@ -8,16 +8,19 @@ public sealed class ListMarkerPositionTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 150, PageHeight = 145, Margin = 20 };
 
+    // The user-agent sheet's 8px body margin would leave the 100pt test box wider than the 110pt page content.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var o = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, o, default), o, default);
     }
 
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options ?? Page);
+        PdfConverter.Convert(NoBodyMargin + html, output, options ?? Page);
         return output.ToArray();
     }
 
@@ -39,7 +42,9 @@ public sealed class ListMarkerPositionTests
     [Test]
     public void FirstWordCanFollowAnInsideMarkerOnTheNextLineWithoutTruncation()
     {
-        const string html = "<div style='width:100pt'><ol style='list-style-position:inside'><li>ABCDEFGHIJKL</li></ol></div>";
+        // padding-left:0 keeps the word (about 91pt) fitting the 100pt box but not beside the marker; the
+        // user-agent 30pt list padding would leave only 70pt and make the word itself overwide.
+        const string html = "<div style='width:100pt'><ol style='padding-left:0;list-style-position:inside'><li>ABCDEFGHIJKL</li></ol></div>";
         var runs = Layout(html).SelectMany(p => p.Runs).ToArray();
         var marker = runs.Single(r => r.Text == "1.");
         var word = runs.Single(r => r.Text == "ABCDEFGHIJKL");

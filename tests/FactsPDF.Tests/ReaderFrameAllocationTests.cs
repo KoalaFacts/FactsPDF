@@ -47,8 +47,10 @@ public sealed class ReaderFrameAllocationTests
     {
         var options = new PdfOptions { MaxDepth = 64 };
         var tree = HtmlDocumentReader.ReadTree(Nested(60, 2), options, default);
-        Assert.That(tree.Children, Has.Count.EqualTo(2));
-        foreach (var top in tree.Children)
+        // The implied body is the root's only child and holds the two nests.
+        var body = (BlockNode)tree.Children.Single();
+        Assert.That(body.Children, Has.Count.EqualTo(2));
+        foreach (var top in body.Children)
         {
             var (depth, text) = Deepest(top, 0);
             Assert.That(depth, Is.EqualTo(60));

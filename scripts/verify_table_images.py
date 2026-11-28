@@ -26,8 +26,8 @@ def create(directory):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     image = next(x for x in create_png(directory)['cases'] if x['name'] == 'rgba')
-    common = ('<style>table{width:300pt;font-size:10pt;line-height:1.2}'
-              'td,th{padding:5pt;border:1pt solid #718096}th{font-weight:normal}'
+    common = ('<style>body{margin:0}table{width:300pt;font-size:10pt;line-height:1.2}'
+              'td,th{vertical-align:top;padding:5pt;border:1pt solid #718096}th{font-weight:normal}'
               '.logo{background-color:#204060}img{width:66pt;padding:2pt;border:1pt solid #cc5500}'
               '</style>')
     columns = '<colgroup><col style="width:120pt"><col style="width:180pt"></colgroup>'

@@ -112,14 +112,16 @@ public sealed class LetterSpacingTests
     {
         var narrow = Page with { PageWidth = 128, PageHeight = 72, Margin = 24 };
         const string text = "AB CD EF GH";
-        var normal = Layout("<p>" + text + "</p>", narrow);
-        var tracked = Layout("<p style='letter-spacing:3pt'>" + text + "</p>", narrow);
+        // The 24pt-tall usable page holds one line only without the default body and paragraph margins.
+        const string reset = "<style>html,body{margin:0}p{margin:0}</style>";
+        var normal = Layout(reset + "<p>" + text + "</p>", narrow);
+        var tracked = Layout(reset + "<p style='letter-spacing:3pt'>" + text + "</p>", narrow);
         Assert.That(normal.SelectMany(p => p.Runs).ToArray(), Has.Length.EqualTo(1));
         Assert.That(tracked.SelectMany(p => p.Runs).Count(), Is.GreaterThan(1));
         Assert.That(tracked.SelectMany(p => p.Runs).Select(r => r.Text).Aggregate("", (a,b) => a+b)
             .Replace(" ", ""), Is.EqualTo(text.Replace(" ", "")));
         Assert.That(tracked.Count, Is.EqualTo(2), "Measured tracking must move the second text line onto a second valid PDF page.");
-        Assert.That(Pdf("<p style='letter-spacing:3pt'>" + text + "</p>", narrow), Is.Not.Empty);
+        Assert.That(Pdf(reset + "<p style='letter-spacing:3pt'>" + text + "</p>", narrow), Is.Not.Empty);
     }
 
     [Test]
@@ -156,7 +158,8 @@ public sealed class LetterSpacingTests
         var marker = runs.Single(run => run.Text == "1.");
         var item = runs.Single(run => run.Text == "A");
         Assert.That(marker.Width, Is.EqualTo(20.4).Within(0.001));
-        Assert.That(marker.X, Is.EqualTo(20).Within(0.001));
+        // The marker ends 0.5em (6pt) before the item at 20 page + 6 body + 30 list padding.
+        Assert.That(marker.X, Is.EqualTo(56 - 6 - 20.4).Within(0.001));
         Assert.That(item.X - (marker.X + marker.Width), Is.EqualTo(6).Within(0.001),
             "An inherited tracked decimal marker must not intrude into item content.");
         Assert.That(Encoding.Latin1.GetString(Pdf("<ol style='letter-spacing:3pt'><li>A</li></ol>")),

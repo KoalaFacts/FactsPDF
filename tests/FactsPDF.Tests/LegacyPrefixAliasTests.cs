@@ -105,7 +105,7 @@ public sealed class LegacyPrefixAliasTests
     }
 
     private static string Decorated(string declarations) =>
-        $"<style>h2{{{declarations}}} .unused{{{declarations}}}</style><h2>Invoice</h2>" +
+        $"<style>h2{{{declarations}}} .unused{{{declarations}}}</style><h2 style='font-weight:normal'>Invoice</h2>" +
         $"<p style='{declarations}'>Paid <span style='{declarations}'>in full</span> " +
         $"<a href='https://example.com/' style='{declarations}'>link</a></p>";
 

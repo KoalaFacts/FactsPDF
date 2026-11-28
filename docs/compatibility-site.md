@@ -447,6 +447,20 @@ annotation and a warning. No status or count moves (full 45, partial 270, none 9
 `site/src/audit-english-nested-tables.mjs`, ordered source-text SHA-256
 `a7f0ad66cac08b0986ca75f7a64ba65cd76c1609913644a1924ca8f35bcc8ef2`. The entries below
 describe the state at their own dates.
+## The user-agent stylesheet
+
+A candidate change replaces strings in place for the `html.body`, `html.blockquote`, `html.figure`, `html.dl`,
+`html.dd`, `html.h1` to `html.h6`, `html.hr`, `html.menu`, `html.ol`, `html.ul`, `html.li`, `html.p`, `html.small`
+and `css.line-height` rows, the list marker rows and the `<body>` sentence shared by the margin rows: the
+supported elements take Chrome's user-agent defaults (the 8px `body` margin, 1em `p`, `dl` and block margins,
+`blockquote` and `figure` insets of 40px, heading sizes and bold (needing a bold chain like `b`), 40px list padding with hanging markers,
+Chrome's `hr` bevel, `big`) and `line-height:normal` reads the first font's metrics. Twenty-one English strings are
+replaced in place, so no count or status moves (full 45, partial 271, none 94; 418 records, 52 accepted CSS property
+names unchanged). Current dataset SHA-256:
+`0a81c02cebb762a7246948473a4d666535f5d95e9118a3ec0bbfc324ddd9d717`; English layer
+`site/src/audit-english-ua-stylesheet.mjs`, ordered source-text SHA-256
+`c1540c492087eb7783f7d259e4d73e171425fb7e4faa223f8b50cabc518bcc38`. The older entries below describe the state at
+their own dates.
 
 ## The font shorthand
 

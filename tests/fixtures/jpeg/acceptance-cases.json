@@ -45,7 +45,7 @@
     },
     {
       "id": "D1-image-only",
-      "html": "<img src=\"chart\" style=\"width:200pt\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" style=\"width:200pt\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -71,7 +71,7 @@
     },
     {
       "id": "D1-gray-natural",
-      "html": "<img src=\"gray\">",
+      "html": "<style>body{margin:0}</style><img src=\"gray\">",
       "resources": {
         "gray": "gray.jpg"
       },
@@ -93,7 +93,7 @@
     },
     {
       "id": "D1-resource-reuse",
-      "html": "<img src=\"chart\" style=\"width:80pt\"><img src=\"chart\" style=\"width:80pt\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" style=\"width:80pt\"><img src=\"chart\" style=\"width:80pt\">",
       "resources": {
         "chart": "rgb-420.jpg",
         "unused": "gray.jpg"
@@ -117,13 +117,13 @@
     },
     {
       "id": "D1-case-sensitive-missing",
-      "html": "<img src=\"Chart\">",
+      "html": "<style>body{margin:0}</style><img src=\"Chart\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
       "expect": {
         "code": "FPDF1604",
-        "source_offset": 0,
+        "source_offset": 29,
         "output_unchanged": true
       },
       "applies_to": [
@@ -136,11 +136,11 @@
     },
     {
       "id": "D1-no-implicit-url",
-      "html": "<img src=\"https://example.invalid/chart.jpg\">",
+      "html": "<style>body{margin:0}</style><img src=\"https://example.invalid/chart.jpg\">",
       "resources": {},
       "expect": {
         "code": "FPDF1103",
-        "source_offset": 0,
+        "source_offset": 29,
         "output_unchanged": true,
         "network_attempts": 0
       },
@@ -154,11 +154,11 @@
     },
     {
       "id": "D1-no-implicit-path",
-      "html": "<img src=\"chart.jpg\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart.jpg\">",
       "resources": {},
       "expect": {
         "code": "FPDF1604",
-        "source_offset": 0,
+        "source_offset": 29,
         "output_unchanged": true,
         "filesystem_attempts_by_core": 0
       },
@@ -172,11 +172,11 @@
     },
     {
       "id": "D1-missing-src",
-      "html": "<img>",
+      "html": "<style>body{margin:0}</style><img>",
       "resources": {},
       "expect": {
         "code": "FPDF1103",
-        "source_offset": 0,
+        "source_offset": 29,
         "output_unchanged": true
       },
       "applies_to": [
@@ -189,7 +189,7 @@
     },
     {
       "id": "D1-duplicate-src",
-      "html": "<img src=\"chart\" src=\"chart\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" src=\"chart\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -202,20 +202,20 @@
       ],
       "expect": {
         "code": "FPDF1101",
-        "source_offset": 17,
+        "source_offset": 46,
         "source_token": "src",
         "output_unchanged": true
       }
     },
     {
       "id": "D1-inline-refusal",
-      "html": "<p>Before<img src=\"chart\" style=\"display:block\"></p>",
+      "html": "<style>body{margin:0}</style><p>Before<img src=\"chart\" style=\"display:block\"></p>",
       "resources": {
         "chart": "rgb-420.jpg"
       },
       "expect": {
         "code": "FPDF1101",
-        "source_offset": 9,
+        "source_offset": 38,
         "output_unchanged": true
       },
       "applies_to": [
@@ -228,13 +228,13 @@
     },
     {
       "id": "D1-list-refusal",
-      "html": "<ul><li><div><img src=\"chart\" style=\"display:block\"></div></li></ul>",
+      "html": "<style>body{margin:0}</style><ul><li><div><img src=\"chart\" style=\"display:block\"></div></li></ul>",
       "resources": {
         "chart": "rgb-420.jpg"
       },
       "expect": {
         "code": "FPDF1101",
-        "source_offset": 13,
+        "source_offset": 42,
         "output_unchanged": true
       },
       "applies_to": [
@@ -247,7 +247,7 @@
     },
     {
       "id": "D1-html-height-refusal",
-      "html": "<img src=\"chart\" height=\"100\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" height=\"100\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -265,7 +265,7 @@
     },
     {
       "id": "D1-css-height-refusal",
-      "html": "<img src=\"chart\" style=\"height:100%\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" style=\"height:100%\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -283,13 +283,13 @@
     },
     {
       "id": "D1-width-refusal",
-      "html": "<img src=\"chart\" style=\"width:1000pt\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" style=\"width:1000pt\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
       "expect": {
         "code": "FPDF1302",
-        "source_offset": 0,
+        "source_offset": 29,
         "output_unchanged": true
       },
       "applies_to": [
@@ -302,7 +302,7 @@
     },
     {
       "id": "D1-height-refusal",
-      "html": "<img src=\"chart\" style=\"width:200pt\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\" style=\"width:200pt\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -312,7 +312,7 @@
       },
       "expect": {
         "code": "FPDF1302",
-        "source_offset": 0,
+        "source_offset": 29,
         "output_unchanged": true
       },
       "applies_to": [
@@ -327,7 +327,7 @@
     },
     {
       "id": "D1-command-refusal",
-      "html": "<img src=\"chart\"><img src=\"chart\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\"><img src=\"chart\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -350,7 +350,7 @@
     },
     {
       "id": "D1-output-refusal",
-      "html": "<img src=\"chart\">",
+      "html": "<style>body{margin:0}</style><img src=\"chart\">",
       "resources": {
         "chart": "rgb-420.jpg"
       },
@@ -373,7 +373,7 @@
     },
     {
       "id": "D1-unused-resource-counts",
-      "html": "<p>ASCII</p>",
+      "html": "<style>body{margin:0}</style><p>ASCII</p>",
       "resources": {
         "chart": "rgb-420.jpg",
         "unused": "gray.jpg"

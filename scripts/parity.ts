@@ -43,6 +43,13 @@
 // title-written — an existing example with a title element renders a PDF that
 // differs only by gaining the document information /Title (the page's title element is the PDF
 // Title, as in a browser): both exit 0, with the same diagnostics, and only the head PDF holds /Title.
+// ua-stylesheet — an existing example renders a different PDF on both sides (or a decorated
+// bottom edge now (no longer) fits): every element takes Chrome's user-agent defaults (the body
+// margin, 1em paragraph, heading and block margins, heading sizes, list padding, cell padding,
+// font-metric line height ...) below the author's rules, so the content moves. Each example's pages
+// are reviewed against Chrome; an author rule that sets the property keeps winning.
+// A run that rendered before (or failed for another reason) and now fails FPDF1507 is this kind too: headings and th are bold in
+// the sheet, so an example with a heading and no bold font chain needs one (or font-weight:normal).
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -82,6 +89,7 @@ const kindsOf = (difference: Difference): ExpectedKind[] =>
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
   'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'title-written'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
@@ -215,6 +223,17 @@ function rendersDifferently(base: RunResult, head: RunResult): boolean {
   return rendered || decoratedOverflow(base, head) || decoratedOverflow(head, base);
 }
 
+const boldFailure = /^FPDF1507: Supply an explicit font chain for bold text\.$/m;
+
+/**
+ * Whether the head fails because bold text now needs a bold font chain, where the base rendered or failed
+ * earlier or later for another reason (a missing CJK font, a decorated edge) or at another place.
+ */
+function boldChainFailure(base: RunResult, head: RunResult): boolean {
+  return (base.exitCode === 0 && base.pdf !== null || base.exitCode === 3 && base.pdf === null) && head.exitCode === 3 && head.pdf === null &&
+    boldFailure.test(head.stderr.replace(/\r\n/g, '\n'));
+}
+
 const decoratedFailure = /^FPDF1302: Decorated box fragment exceeds the usable page area\.$/m;
 
 /** Whether one side renders and the other fails only at a decorated box's bottom edge. */
@@ -262,7 +281,9 @@ export function classifyDifferences(base: RunResult, head: RunResult, newExample
   if (!newExample && rendersDifferently(base, head)) {
     if (hasList) kinds.push('list-default-margin');
     if (hasBlock) kinds.push('block-margin-collapse');
+    kinds.push('ua-stylesheet');
   }
+  if (!newExample && boldChainFailure(base, head)) kinds.push('ua-stylesheet');
   if (kinds.length > 0 || base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
     return kinds;
   }

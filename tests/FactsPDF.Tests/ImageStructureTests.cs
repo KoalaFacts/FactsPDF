@@ -33,7 +33,10 @@ public sealed class ImageStructureTests
         const string html = "<section>Before<img src='chart' alt='Chart' class='pic'/>After</section>"
             + "<style>section > img.pic{width:50%;padding:2pt;border:1pt solid red;background-color:white}</style>";
         // A default (display:inline) img is an atomic inline in its text's paragraph.
-        var root = Tree(html); var children = ((BlockNode)root.Children.Single()).Children;
+        var root = Tree(html);
+        // The implied body is the root's only child, and the section is the body's only child.
+        var body = (BlockNode)root.Children.Single();
+        var children = ((BlockNode)body.Children.Single()).Children;
         Assert.That(children, Has.Count.EqualTo(1));
         var runs = ((Paragraph)children[0]).Runs;
         Assert.That(runs, Has.Count.EqualTo(3));
@@ -52,7 +55,7 @@ public sealed class ImageStructureTests
     {
         var root = Tree("<img src='chart'><ul><li>Item</li></ul><p>After</p>");
         Assert.That(root.HasLists, Is.True);
-        Assert.That(((Paragraph)root.Children[0]).Runs.Single(), Is.TypeOf<InlineImageRun>());
+        Assert.That(((Paragraph)((BlockNode)root.Children.Single()).Children[0]).Runs.Single(), Is.TypeOf<InlineImageRun>());
         Assert.DoesNotThrow(() => ListLayout.Prepare(root, Options(), default));
         Assert.That(string.Concat(BlockTreeTraversal.Paragraphs(root, default).SelectMany(p => p.Runs).Select(r => r.Text)),
             Is.EqualTo("ItemAfter"));

@@ -44,3 +44,7 @@ Sole feature PR: [#15](https://github.com/KoalaFacts/FactsPDF/pull/15).
 - Request fresh independent Codex review of the final head, including resource/error ordering, zero-area costs, exact thresholds, same-harness provenance and honest measurement interpretation.
 - Verify all current-head NUnit/Native-AOT, existing visual/font/CSS workflows and new resource evidence plus CodeQL. Reproduce and fix substantive review findings before merge.
 - User already authorizes merge after those gates, followed by actual merged-main verification. Update PR conversation with final exact SHA/results; do not start M10, publish packages or change licensing.
+
+## Baseline advanced past the user-agent stylesheet
+
+The user-agent stylesheet (an 8px `body` margin, 1em `p` margins) intentionally changes the bytes of unstyled input, and the M8 commit cannot author the earlier layout back (it accepts no `body` margin). The same-harness comparison therefore pins the last commit before the stylesheet, `2df75f60bb1d94fc91a0a15df2cdbe656f7417ce`, which already has the `Pdf.Write()` SDK, so the pre-SDK adapter was removed and one `BenchmarkEngine.cs` serves both revisions. The three workloads now author `body{margin:0}` and 8pt paragraph margins; both engines produce identical PDF hashes for them (checked locally on the managed build).

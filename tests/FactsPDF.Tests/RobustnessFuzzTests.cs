@@ -85,14 +85,14 @@ public sealed class RobustnessFuzzTests
         // hostile CSS on real HTML. Most edits are small so that a useful share of cases still reaches layout.
         var documents = Directory.EnumerateFiles(Path.Combine(FindRoot(), "examples"), "*.html", SearchOption.AllDirectories)
             .Order(StringComparer.Ordinal).Select(File.ReadAllText)
-            .Where(html => StyleElement.IsMatch(html) && RendersUnchanged(html)).ToArray();
+            .Where(html => StyleElement.IsMatch(html) && RendersUnchanged(WithoutBoldDefaults(html))).ToArray();
         var sheets = documents.SelectMany(html => StyleElement.Matches(html).Select(match => match.Groups[1].Value)).ToArray();
         Assert.That(documents, Has.Length.GreaterThan(20));
         var rendered = Run(1_500, Seed + 3, random =>
         {
             var html = StyleElement.Replace(documents[random.Next(documents.Length)],
                 match => "<style>" + MutateCss(random, match.Groups[1].Value, sheets) + "</style>");
-            return () => Render(html, new PdfOptions());
+            return () => Render(WithoutBoldDefaults(html), new PdfOptions());
         });
         // Coverage floor (measured 150 on 92 qualifying examples); re-tune it when the example corpus changes.
         Assert.That(rendered, Is.GreaterThan(75), "Mutated stylesheets must still reach layout, not only the CSS parser.");
@@ -222,7 +222,8 @@ public sealed class RobustnessFuzzTests
         var font = PdfFont.FromBytes(Font);
         var options = new PdfOptions { Fonts = [font], BoldFonts = [font], SubsetFonts = true, PageNumbers = true };
         var html = string.Concat(Enumerable.Repeat("<p>AB <b>Wi</b> 中文</p>", 120));
-        var quickStart = File.ReadAllText(Path.Combine(root, "examples", "quick-start.html"));
+        var quickStart = File.ReadAllText(Path.Combine(root, "examples", "quick-start.html"))
+            .Replace("</head>", "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style></head>", StringComparison.Ordinal);
         var expected = new[] { Render(html, options), Render(quickStart, new PdfOptions()) };
         var outputs = new byte[64][];
         Parallel.For(0, outputs.Length, new ParallelOptions { MaxDegreeOfParallelism = 8 },
@@ -468,6 +469,13 @@ public sealed class RobustnessFuzzTests
         }
         return json.ToString();
     }
+
+    // Headings and th are bold in the user-agent sheet and the default options supply no bold font: the pin keeps
+    // an example renderable, and is added after the mutation so the mutated sheets cannot remove it.
+    private static string WithoutBoldDefaults(string html)
+        => html.Contains("</head>", StringComparison.Ordinal)
+            ? html.Replace("</head>", "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style></head>", StringComparison.Ordinal)
+            : "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>" + html;
 
     private static bool RendersUnchanged(string html)
     {

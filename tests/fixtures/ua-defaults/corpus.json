@@ -49,6 +49,7 @@
   {"id": "inline-i", "body": "<p>AAA <i>XXX</i> BBB</p>", "targets": [{"key": "i#0", "text": "XXX"}]},
   {"id": "inline-em", "body": "<p>AAA <em>XXX</em> BBB</p>", "targets": [{"key": "em#0", "text": "XXX"}]},
   {"id": "inline-small", "body": "<p>AAA <small>XXX</small> BBB</p>", "targets": [{"key": "small#0", "text": "XXX"}]},
+  {"id": "inline-big", "body": "<p>AAA <big>XXX</big> BBB</p>", "targets": [{"key": "big#0", "text": "XXX"}]},
   {"id": "inline-u", "body": "<p>AAA <u>XXX</u> BBB</p>", "targets": [{"key": "u#0", "text": "XXX"}]},
   {"id": "inline-s", "body": "<p>AAA <s>XXX</s> BBB</p>", "targets": [{"key": "s#0", "text": "XXX"}]},
   {"id": "inline-del", "body": "<p>AAA <del>XXX</del> BBB</p>", "targets": [{"key": "del#0", "text": "XXX"}]},

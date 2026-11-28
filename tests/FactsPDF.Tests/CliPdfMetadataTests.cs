@@ -7,7 +7,7 @@ namespace FactsPDF.Tests;
 [TestFixture]
 public sealed class CliPdfMetadataTests
 {
-    private const string Report = "<h1>Quarterly report</h1><p>Invoice A</p>" +
+    private const string Report = "<h1 style='font-weight:normal'>Quarterly report</h1><p>Invoice A</p>" +
         "<p style='break-before:page'>Invoice B</p>";
     private static (int Exit, byte[] Pdf, string Stderr) Render(string[] args, string? html = null)
     {

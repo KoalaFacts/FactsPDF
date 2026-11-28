@@ -6,7 +6,9 @@ namespace FactsPDF.Tests;
 // exactly 6pt wide and every expected column width below is plain arithmetic.
 public sealed class TableAutoLayoutTests
 {
-    private const string Cells = "<style>td,th{background-color:#eef3f7}th{font-weight:normal}</style>";
+    // The widths below are plain glyph arithmetic, so the user-agent body margin and cell padding
+    // are reset and th is not bold.
+    private const string Cells = "<style>body{margin:0}td,th{padding:0;vertical-align:top;background-color:#eef3f7}th{font-weight:normal}</style>";
 
     private static string Table(string rows, string tableStyle = "font-size:10pt", string head = "")
         => $"{Cells}<table style='{tableStyle}'>{head}<tbody>{rows}</tbody></table>";

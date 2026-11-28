@@ -9,17 +9,32 @@ public sealed class ReportPanelMarginTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static byte[] Pdf(string html, PdfOptions? page = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, page ?? Page);
+        PdfConverter.Convert(Neutral(html), output, page ?? Page);
         return output.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? page = null)
     {
         var settings = page ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, settings, default), settings, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), settings, default), settings, default);
     }
 
     private static void Reject(string html, string code)
@@ -28,7 +43,7 @@ public sealed class ReportPanelMarginTests
         output.Write("original-pdf"u8);
         output.Position = 3;
         var error = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert(html, output, Page));
+            PdfConverter.Convert(Neutral(html), output, Page));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(output.ToArray(), Is.EqualTo("original-pdf"u8.ToArray()));
         Assert.That(output.Position, Is.EqualTo(3));
@@ -135,7 +150,6 @@ public sealed class ReportPanelMarginTests
         Assert.That(Pdf(explicitZero), Is.EqualTo(Pdf(body)));
     }
 
-    [TestCase("<body style='margin:0 auto'>A</body>", "FPDF1201")]
     [TestCase("<table style='margin-left:5pt'><colgroup><col style='width:100pt'></colgroup><tbody><tr><td>A</td></tr></tbody></table>", "FPDF1201")]
     [TestCase("<ol style='margin-top:5%'><li>A</li></ol>", "FPDF1201")]
     [TestCase("<span style='margin-left:2pt'>A</span>", "FPDF1201")]
@@ -144,4 +158,20 @@ public sealed class ReportPanelMarginTests
     [TestCase("<div style='width:240pt;margin-left:30pt'>A</div>", "FPDF1302")]
     public void InvalidOrOutOfScopePanelMarginsPreserveOriginalDestination(string html, string code)
         => Reject(html, code);
+
+    // The body is a real box with the 6pt user-agent margin, so an auto side computes to 0 like in a
+    // browser: it is no longer out of scope and renders like the explicit zero on that side.
+    [TestCase("margin:0 auto", "margin:0")]
+    [TestCase("margin-left:auto", "margin-left:0")]
+    public void AnAutoMarginOnTheBodyComputesToZero(string auto, string zero)
+    {
+        static byte[] Raw(string html)
+        {
+            using var output = new MemoryStream();
+            PdfConverter.Convert(html, output, Page);
+            return output.ToArray();
+        }
+
+        Assert.That(Raw($"<body style='{auto}'>A</body>"), Is.EqualTo(Raw($"<body style='{zero}'>A</body>")));
+    }
 }

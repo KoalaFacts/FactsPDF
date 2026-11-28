@@ -117,8 +117,8 @@ public sealed class OverflowWrapTests
     [Test]
     public void RealMultipageReportMatchesIndependentlyAuthoredExplicitBreakOracle()
     {
-        var report = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap.html"));
-        var oracle = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap-oracle.html"));
+        var report = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap.html")).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
+        var oracle = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "report-overflow-wrap-oracle.html")).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
         var options = new PdfOptions();
         Assert.That(Pdf(report, options), Is.EqualTo(Pdf(oracle, options)));
         var pages = TextLayout.Layout(HtmlDocumentReader.ReadTree(report, options, default), options, default);

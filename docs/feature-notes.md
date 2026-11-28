@@ -669,8 +669,8 @@ styles it; like `<em>` it needs an italic font chain, and CSS
 `font-style:normal` resets it (`AddressElementTests.cs`).
 
 `<dl>`, `<dt>` and `<dd>` render as block containers like `<div>`: `dl` with
-the default 8pt top and bottom margins and `dd` with a 24pt start indent
-(blockquote's scale), both overridable by CSS. The `</dt>` and `</dd>` end tags
+the default 1em top and bottom margins and `dd` with a 40px start indent
+(Chrome's), both overridable by CSS. The `</dt>` and `</dd>` end tags
 must be written, and like `blockquote`, `dl` and `dd` may not sit in a list or
 table (`DescriptionListElementTests.cs`).
 
@@ -687,7 +687,7 @@ These five tags are inline-only, with explicit closing tags and existing
 depth/element budgets. Unsupported `datetime` or `cite` on `del`/`ins`,
 block descendants, CSS lengths or malformed markup fail using the existing
 output-preserving diagnostics. There are no native change annotations, PDF
-history/timestamps, browser user-agent styles, or automatic fonts.
+history/timestamps or automatic fonts.
 
 A [44-change work order](../examples/report-inline-changes.html)
 and [explicit CSS/span oracle](../examples/report-inline-changes-oracle.html)

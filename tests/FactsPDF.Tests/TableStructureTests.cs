@@ -104,7 +104,7 @@ public sealed class TableStructureTests
 
     [TestCase("col", "color:red")][TestCase("col", "padding:1pt")]
     [TestCase("colgroup", "width:100pt")][TestCase("tbody", "padding:2pt")]
-    [TestCase("tr", "border:1pt solid red")][TestCase("td", "min-width:100pt")]
+    [TestCase("tr", "outline:1pt solid red")][TestCase("td", "min-width:100pt")]
     [TestCase("td", "margin-top:1pt")][TestCase("td", "break-before:page")]
     [TestCase("table", "margin-left:1pt")][TestCase("table", "table-layout:fixed")]
     [TestCase("table", "table-layout:auto")]

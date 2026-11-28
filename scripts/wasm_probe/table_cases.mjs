@@ -25,7 +25,9 @@ export const tableCases = [
 ];
 export const tableAscii = { name: 'tables-points', html: readFileSync(new URL('../../tests/fixtures/tables-e1/points.html', import.meta.url), 'utf8'),
   text: 'ID Category Description R001 Overview One complete row R002 Detail First line Second line', pages: 1, fonts: false, ignoreLayoutWhitespace: true };
-const empty = "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
+// The pre-user-agent shape: no body margin, paragraph margin or cell padding, so the empty table is invisible.
+const reset = "<style>html,body{margin:0}p{margin:0}td{padding:0;vertical-align:top}</style>";
+const empty = reset + "<table><colgroup><col style='width:100%'></colgroup><tbody><tr><td></td></tr></tbody></table>";
 export const tableBoundaryCases = [
   { name: 'tables-e2-100', html: readFileSync(new URL('../../tests/fixtures/tables-e2/rows-100.html', import.meta.url), 'utf8'),
     text: [26,26,26,22].map((count,page) => 'ID DESCRIPTION ' + Array.from({length:count},(_,i) => `R${String(page*26+i+1).padStart(3,'0')} Record`).join(' ')).join(' '),

@@ -46,7 +46,7 @@ public sealed class RelativeFontSizingTests
     [Test]
     public void NestedRelativeTypographyIsByteIdenticalToExplicitPointSizes()
     {
-        var body = "<body><h1>Service statement</h1><p>Report <span>Important</span> details</p></body>";
+        var body = "<body><h1 style='font-weight:normal'>Service statement</h1><p>Report <span>Important</span> details</p></body>";
         var relative = "<style>body{font-size:16pt}h1{font-size:125%}"
             + "p{font-size:1.5em}p span{font-size:125%}</style>";
         var absolute = "<style>body{font-size:16pt}h1{font-size:20pt}"

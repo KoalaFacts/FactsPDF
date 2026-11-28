@@ -46,8 +46,10 @@ public sealed class ListMarkerStyleTests
         Assert.That(markers[0].Text, Is.EqualTo(first));
         Assert.That(markers[25].Text, Is.EqualTo(twentySixth));
         Assert.That(markers[26].Text, Is.EqualTo(twentySeventh));
-        Assert.That(runs.Single(r => r.Text == "Entry27").X, Is.EqualTo(47.6).Within(0.000001));
-        Assert.That(markers[26].X, Is.EqualTo(20).Within(0.000001));
+        Assert.That(runs.Single(r => r.Text == "Entry27").X, Is.EqualTo(56).Within(0.000001)); // 20 page + 6 body + 30 (40px) list padding
+        // The marker hangs left of the item: it ends 0.5em (6pt) before the item's x of 56,
+        // and "aa." is 21.6pt wide in the built-in font.
+        Assert.That(markers[26].X, Is.EqualTo(56 - 6 - 21.6).Within(0.000001));
         Assert.That(Pdf(html, Page with { PageHeight = 3000 }).AsSpan(0, 4).SequenceEqual("%PDF"u8), Is.True);
     }
 
@@ -167,7 +169,7 @@ public sealed class ListMarkerStyleTests
         var pages = Layout(source);
         Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.Text), Is.EqualTo(new[] { "A", "B" }));
         Assert.That(pages.SelectMany(p => p.Runs).Select(r => r.X),
-            Is.All.EqualTo(44).Within(0.000001));
+            Is.All.EqualTo(56).Within(0.000001)); // 20 page + 6 body + 30 list padding, with or without a marker
         Assert.That(pages.Sum(p => p.Discs.Count), Is.Zero);
         Assert.DoesNotThrow(() => Pdf(source, Page with { MaxDisplayCommands = 2 }));
         Fails("<ol><li>A</li><li>B</li></ol>", "FPDF1401", Page with { MaxDisplayCommands = 2 });

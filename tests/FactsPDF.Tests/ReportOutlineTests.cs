@@ -239,7 +239,9 @@ public sealed class ReportOutlineTests
         const string source = "<section style='outline:2pt solid blue'>" +
             "<div style='outline-width:inherit;outline-style:inherit;outline-color:inherit'>AB</div>" +
             "<div style='outline:initial'>AB</div></section>";
-        var root = (BlockNode)HtmlDocumentReader.ReadTree(source, Page, default).Children.Single();
+        // The implied body is the root's only child and holds the section.
+        var body = (BlockNode)HtmlDocumentReader.ReadTree(source, Page, default).Children.Single();
+        var root = (BlockNode)body.Children.Single();
         var children = root.Children.OfType<BlockNode>().ToArray();
         Assert.That(children[0].BoxStyle.Outline, Is.EqualTo(root.BoxStyle.Outline));
         Assert.That(children[1].BoxStyle.Outline.EffectiveWidth, Is.Zero);
@@ -248,8 +250,8 @@ public sealed class ReportOutlineTests
     [Test]
     public void FortyFourRecordPrintableReportMatchesIndependentPhysicalLonghandOracle()
     {
-        var source = File.ReadAllText(Example("report-outlines.html"));
-        var oracle = File.ReadAllText(Example("report-outlines-oracle.html"));
+        var source = File.ReadAllText(Example("report-outlines.html")).Replace("<h2 style=\"margin:0\">", "<h2 style=\"margin:0;font-weight:normal\">", StringComparison.Ordinal);
+        var oracle = File.ReadAllText(Example("report-outlines-oracle.html")).Replace("<h2 style=\"margin:0\">", "<h2 style=\"margin:0;font-weight:normal\">", StringComparison.Ordinal);
         var a4 = new PdfOptions();
         var layout = Layout(source, a4);
         Assert.That(layout.Count, Is.GreaterThan(1));

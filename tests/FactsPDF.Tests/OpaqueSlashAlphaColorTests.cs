@@ -22,7 +22,7 @@ public sealed class OpaqueSlashAlphaColorTests
         return Encoding.ASCII.GetString(stream.ToArray());
     }
 
-    private static string Page(string c) => $"<style>h1{{color:{c}}}</style><h1>Total</h1>" +
+    private static string Page(string c) => $"<style>h1{{color:{c};font-weight:normal}}</style><h1>Total</h1>" +
         $"<div style='background:{c};border:2pt dashed {c};text-decoration:underline {c}'>A</div>" +
         $"<p style='color:{c}'>B</p>";
 

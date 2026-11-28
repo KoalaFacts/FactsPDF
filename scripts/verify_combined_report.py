@@ -30,6 +30,10 @@ def row_height(number): return 54 if number % 10 == 0 else 32
 # Chrome's user-agent margin on the (outer) ol: 1em at the 11pt body size, above and below.
 # The nested ul has none. List items move by one margin, everything after the list by two.
 LIST_MARGIN = 11
+# Chrome's user-agent padding-left of 40px (30pt) on every ol and ul indents the items; the marker hangs
+# half an em (5.5pt at 11pt) left of the item's content. The body margin is authored zero.
+LIST_INDENT = 36 + 30
+MARKER_GAP = 5.5
 
 
 def row_groups(count, image_gap):
@@ -126,11 +130,11 @@ def authored(count, sources, furniture=True, keep=True):
     line(0, 103, 45, '', segments=[('状态 ', 'normal'), ('通过', 'bold'), (' / ', 'normal'),
         ('Reviewed', 'italic'), (' / ', 'normal'), ('Priority', 'boldItalic')])
     box(0, 36, 94, 523.28, 40, (238/255,244/255,250/255))
-    for text, top, x in [('核对记录 / Check records',134+LIST_MARGIN,58),('保留证据 / Retain evidence',156+LIST_MARGIN,80),('签署结论 / Sign decision',178+LIST_MARGIN,58)]:
-        if x == 58:
+    for text, top, x in [('核对记录 / Check records',134+LIST_MARGIN,LIST_INDENT),('保留证据 / Retain evidence',156+LIST_MARGIN,(LIST_INDENT+30)),('签署结论 / Sign decision',178+LIST_MARGIN,LIST_INDENT)]:
+        if x == LIST_INDENT:
             marker = '1.' if top == 134+LIST_MARGIN else '2.'
             width = sum(sources.width(sources.font('normal', c), c, 11) for c in marker)
-            line(0, top, 52.5-width, marker)
+            line(0, top, x-MARKER_GAP-width, marker)
         line(0, top, x, text)
     line(0, 330+gap, 36, 'CHART-01 合成示意 / Synthetic chart')
     line(0, 352+gap, 36, '记录明细 / Record details', 12, 'bold')
@@ -177,13 +181,13 @@ def authored(count, sources, furniture=True, keep=True):
                 width = sum(sources.width(sources.font('normal', c),c,10) for c in text)
                 line(page,0,(595.28-width)/2,text,10,baseline=expected_baseline(text,sources.metrics,H,top),color=(0,0,0))
     disc_y = H-156-LIST_MARGIN-sources.ascent('normal',11)+3.3
-    return pages, rectangles, page_text, (72.85, disc_y, 1.65)
+    return pages, rectangles, page_text, ((LIST_INDENT+30)-MARKER_GAP-1.65, disc_y, 1.65)
 
 
 def painted(page, reader):
     rectangles=[]; discs=[]; images=[]; color=(0,0,0); matrix=[1,0,0,1,0,0]; stack=[]; path=[]; seen_text=False
     for values, op in ContentStream(page.get_contents(),reader).operations:
-        assert op in (b'q',b'Q',b'rg',b'cm',b're',b'm',b'c',b'f',b'n',b'Do',b'BT',b'ET',b'Tf',b'Tm',b'Tj'), 'unexpected painting operator'
+        assert op in (b'q',b'Q',b'rg',b'cm',b're',b'm',b'c',b'f',b'n',b'Do',b'BT',b'ET',b'Tf',b'Tm',b'Tj'), 'unexpected painting operator '+repr(op)
         if op == b'q': stack.append((color,matrix.copy()))
         elif op == b'Q': color,matrix=stack.pop()
         elif op == b'rg': color=tuple(map(float,values))

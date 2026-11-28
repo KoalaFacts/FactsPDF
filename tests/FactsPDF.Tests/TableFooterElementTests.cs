@@ -110,7 +110,6 @@ public sealed class TableFooterElementTests
     [TestCase("<table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><tfoot><tr><td>A</td><td>B</td></tr></tfoot><tbody><tr><td>A</td><td>B</td></tr></tbody></table>", "FPDF1101")]
     [TestCase("<table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><tfoot><tr><td>A</td><td>B</td></tr></table>", "FPDF1101")]
     [TestCase("<p>A<tfoot></tfoot></p>", "FPDF1101")]
-    [TestCase("<style>tfoot{border:1pt solid red}</style><table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><tfoot><tr><td>A</td><td>B</td></tr></tfoot></table>", "FPDF1201")]
     [TestCase("<table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><tfoot href='x'><tr><td>A</td><td>B</td></tr></tfoot></table>", "FPDF1103")]
     public void UnsupportedUsesStillFail(string html, string code)
     {
