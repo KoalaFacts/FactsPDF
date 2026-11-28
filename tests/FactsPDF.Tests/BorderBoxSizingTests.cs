@@ -159,19 +159,24 @@ public sealed class BorderBoxSizingTests
         "<tbody><tr><td>Head</td></tr><tr><td style='padding:4pt'><p>Cell <span>text</span></p></td></tr></tbody></table></body></html>";
 
     [Test]
-    public void BorderBoxTableWidthIncludesPaddingAndBorders()
-        => Assert.That(Pdf(Table("box-sizing:border-box;width:200pt;padding:5pt;border:2pt solid red", "186pt")),
-            Is.EqualTo(Pdf(Table("width:186pt;padding:5pt;border:2pt solid red", "186pt"))));
+    public void TableWidthIncludesPaddingAndBordersAsInChromesUserAgentSheet()
+    {
+        // The user-agent sheet gives table box-sizing:border-box; content-box is the authored opt-out.
+        var contentBox = Pdf(Table("box-sizing:content-box;width:186pt;padding:5pt;border:2pt solid red", "186pt"));
+        Assert.That(Pdf(Table("width:200pt;padding:5pt;border:2pt solid red", "186pt")), Is.EqualTo(contentBox));
+        Assert.That(Pdf(Table("box-sizing:border-box;width:200pt;padding:5pt;border:2pt solid red", "186pt")), Is.EqualTo(contentBox));
+    }
 
     [TestCase("*{box-sizing:border-box}")]
     [TestCase("html{box-sizing:border-box}*{box-sizing:inherit}")]
     [TestCase("table,colgroup,col,tbody,tr,td,p{box-sizing:border-box}")]
-    public void UniversalResetsOnTablePagesChangeOnlyTheTableBox(string css)
+    public void UniversalResetsOnTablePagesChangeNothingBecauseTheTableIsAlreadyBorderBox(string css)
     {
-        // Without padding or borders the table box is the same either way; rows, groups,
-        // columns, cells and cell paragraphs accept no width with edges, so nothing moves.
+        // Rows, groups, columns, cells and cell paragraphs accept no width with edges, so nothing moves.
         Assert.That(Pdf(Table("width:200pt", "200pt", css)), Is.EqualTo(Pdf(Table("width:200pt", "200pt"))));
         Assert.That(Pdf(Table("width:200pt;padding:5pt", "190pt", css)),
-            Is.EqualTo(Pdf(Table("width:190pt;padding:5pt", "190pt"))));
+            Is.EqualTo(Pdf(Table("width:200pt;padding:5pt", "190pt"))));
+        Assert.That(Pdf(Table("width:190pt;padding:5pt", "190pt", "*{box-sizing:content-box}")),
+            Is.EqualTo(Pdf(Table("width:200pt;padding:5pt", "190pt"))));
     }
 }

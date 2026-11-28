@@ -229,6 +229,7 @@ Nothing about an element's default look lives anywhere else.
 | `dd` | margin-left 40px |
 | `ul`, `ol`, `menu` | margin 1em above and below (none when nested in a list), padding-left 40px (30pt); markers `disc` for `ul`/`menu`, `decimal` for `ol`, `circle` for a `ul`/`menu` nested in a list. The marker hangs outside the item, half an em left of its content; there is no extra gutter, so `ul{padding:0}` puts the text at the list's edge and the marker left of it |
 | `hr` | margin .5em above and below; a 1px border on all four sides painted as Chrome's inset shades (top and left `#9a9a9a`, bottom and right `#eee`), 1.5pt tall in all; `color:gray` |
+| `table` | `box-sizing:border-box`, `border-collapse:separate`, `text-indent:initial` (border-spacing 2px is not implemented) |
 | `td`, `th` | padding 1px; `vertical-align:middle`; `th` is also bold and centred |
 | `tr`, `thead`, `tbody`, `tfoot` | `vertical-align:middle` |
 | `address`, `i`, `em`, `cite`, `var`, `dfn` | italic |

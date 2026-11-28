@@ -55,13 +55,14 @@ public sealed class TableLayoutTests
     }
 
     [Test]
-    public void AutoTableOuterBoxFillsParentWhileExplicitWidthIsContentWidth()
+    public void AutoTableOuterBoxFillsParentWhileExplicitWidthIsTheBorderBox()
     {
         var automatic = NLayout("<div style='width:200pt'>" + Table(tableStyle: "padding:5pt;border:1pt solid red;background-color:white", cellStyle: "background-color:blue") + "</div>").Single();
         Assert.That(automatic.PaintBoxes.Select(b => b.Width), Is.EqualTo(new double[] { 200, 188 }));
         Assert.That(automatic.Runs.Single().X, Is.EqualTo(42));
         var explicitWidth = NLayout("<div style='width:200pt'>" + Table(tableStyle: "width:100pt;padding:5pt;border:1pt solid red;background-color:white", cellStyle: "background-color:blue") + "</div>").Single();
-        Assert.That(explicitWidth.PaintBoxes.Select(b => b.Width), Is.EqualTo(new double[] { 112, 100 }));
+        // Chrome's user-agent sheet gives table box-sizing:border-box: the 100pt width includes padding and border.
+        Assert.That(explicitWidth.PaintBoxes.Select(b => b.Width), Is.EqualTo(new double[] { 100, 88 }));
     }
 
     [TestCase("left", 42)] [TestCase("center", 83)] [TestCase("right", 124)]

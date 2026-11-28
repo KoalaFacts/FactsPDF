@@ -115,6 +115,33 @@ public sealed class UserAgentStyleSheetTests
     }
 
     [Test]
+    public void ATableIsSeparateBorderBoxAndAnInnerTableDoesNotInheritCollapsedBorders()
+    {
+        // Chrome: table{border-collapse:separate;box-sizing:border-box;text-indent:initial}. The inner table in a cell of
+        // a collapsed table is separate again, so the author's tbody row borders reach only the outer table's row.
+        const string css = "<style>body{margin:0}.t{border-collapse:collapse;width:100%}" +
+            ".t tbody tr{border-bottom:3px solid #00f}.t tbody tr:last-of-type{border-bottom:3px solid #f00}</style>";
+        const string html = css + "<table class='t'><thead><tr><th style='font-weight:normal'>A</th><th style='font-weight:normal'>B</th></tr></thead>" +
+            "<tbody><tr><td>A</td><td><table><tr style='background-color:transparent'><td>A</td></tr>" +
+            "<tr style='background-color:transparent'><td>A</td></tr></table></td></tr></tbody></table>";
+        var boxes = Layout(html).SelectMany(p => p.PaintBoxes).ToList();
+        bool Has(double r, double g, double b) => boxes.Any(x => new[] { x.Style.BorderTop, x.Style.BorderBottom, x.Style.BorderLeft, x.Style.BorderRight }
+            .Any(e => e.EffectiveWidth > 0 && (e.Color ?? x.TextColor) is { } c && Math.Abs(c.R - r) < .01 && Math.Abs(c.G - g) < .01 && Math.Abs(c.B - b) < .01));
+        Assert.That(Has(1, 0, 0), Is.True, "the outer last row's red border");
+        Assert.That(Has(0, 0, 1), Is.False, "no blue row border: the inner table is separate and the outer has one row");
+
+        // In the separated model a row or row-group border is validated and dropped, as Chrome paints none.
+        const string separate = "<table><tbody><tr><td>A</td></tr></tbody></table>";
+        Assert.That(Layout("<style>tr{border-bottom:3px solid red}tbody{border:1pt solid red}</style>" + separate).SelectMany(p => p.PaintBoxes), Is.Empty);
+
+        // border-box: the 100pt table width includes its padding and border; content-box opts out.
+        string Wide(string extra) => string.Join(",", Layout($"<style>body{{margin:0}}td{{padding:0}}</style><table style='width:100pt;padding:5pt;background-color:#eee;{extra}'><tr><td>A</td></tr></table>")
+            .SelectMany(p => p.PaintBoxes).Select(b => b.Width));
+        Assert.That(Wide(""), Is.EqualTo("100"));
+        Assert.That(Wide("box-sizing:content-box"), Is.EqualTo("110"));
+    }
+
+    [Test]
     public void TheSheetDeclaresNoDisplayAndEveryRuleEndsInAType()
     {
         Assert.That(UserAgentStyleSheet.For("p"), Is.Not.Null);

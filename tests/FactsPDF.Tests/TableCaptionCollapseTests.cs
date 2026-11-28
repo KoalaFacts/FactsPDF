@@ -198,8 +198,10 @@ public sealed class TableCaptionCollapseTests
     }
 
     [Test]
-    public void RowBordersStillFailWithSeparatedBorders()
-        => TableStructureTests.Fails(Table("tr{border-bottom:1pt solid #000}", Rows(1)), "FPDF1201");
+    public void RowBordersAreValidatedAndDroppedWithSeparatedBorders()
+        // Chrome paints no row border in the separated model, so the declaration changes nothing.
+        => Assert.That(TableLayoutTests.Pdf(Table("tr{border-bottom:1pt solid #000}", Rows(1))),
+            Is.EqualTo(TableLayoutTests.Pdf(Table("", Rows(1)))));
 
     [Test]
     public void CollapsedRowThatMustSplitFails()

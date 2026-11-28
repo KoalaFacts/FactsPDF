@@ -37,9 +37,7 @@ public sealed class AllocationBudgetTests
     [Test]
     public void QuickStartStaysWithinItsAllocationBudget()
     {
-        // Test-only pin: the quick-start headings would otherwise need a bold font chain.
-        var html = File.ReadAllText(Path.Combine(FindRoot(), "examples", "quick-start.html"))
-            .Replace("</head>", "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style></head>");
+        var html = File.ReadAllText(Path.Combine(FindRoot(), "examples", "quick-start.html"));
         var allocated = AllocatedPerConversion(html, Pdf.Write());
         TestContext.Out.WriteLine($"quick-start: {allocated / 1024} KiB per conversion");
         Assert.That(allocated, Is.LessThan(121 * 1024));

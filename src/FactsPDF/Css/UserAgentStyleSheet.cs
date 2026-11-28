@@ -46,6 +46,7 @@ internal static class UserAgentStyleSheet
         ul ul,ol ul,menu ul,ul menu,ol menu,menu menu{list-style-type:circle}
         ul ul,ul ol,ul menu,ol ul,ol ol,ol menu,menu ul,menu ol,menu menu{margin-top:0;margin-bottom:0}
         hr{color:gray;margin-top:.5em;margin-bottom:.5em;border:1px solid;border-color:#9a9a9a #eee #eee #9a9a9a}
+        table{border-collapse:separate;box-sizing:border-box;text-indent:initial}
         td,th{padding:1px;vertical-align:inherit}
         thead,tbody,tfoot,tr{vertical-align:middle}
         """;

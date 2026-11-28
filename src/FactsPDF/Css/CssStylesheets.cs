@@ -884,6 +884,11 @@ internal sealed class CssStylesheets
             if (!block && declaration.Property is CssProperty.ColumnGap or CssProperty.RowGap
                 && declaration.Value is "normal" or "initial" or "unset" or "inherit")
                 return;
+            // In the separated border model Chrome paints no border on a row or row group (only cells and the
+            // table have borders), so the declaration is validated and dropped, as it is there.
+            if (!parent.CollapseBorders && subject is "tr" or "thead" or "tbody" or "tfoot"
+                && declaration.Property is >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor)
+                return;
             // A row or row group background paints under its cells (TableMarkup gives it to
             // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
@@ -1150,7 +1155,7 @@ internal sealed class CssStylesheets
                         : parent;
                 if (!styleOwned) { style = style with { }; styleOwned = true; }
                 CssDeclarations.Apply(style, inheritedParent, initial, declaration,
-                    paragraph || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
+                    paragraph || winner.UserAgent || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
                         or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
                         || cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
