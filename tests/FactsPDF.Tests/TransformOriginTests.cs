@@ -59,7 +59,7 @@ public sealed class TransformOriginTests
     [TestCase("transform-origin:0 0 left")]
     [TestCase("transform-origin:0 0 0 0")]
     [TestCase("transform-origin:0, 0")]
-    [TestCase("transform-origin:calc(50% + 1px)")]
+    [TestCase("transform-origin:env(x)")]
     public void OtherValuesFail(string declaration)
     {
         var html = $"<p style=\"{declaration}\">A</p>";

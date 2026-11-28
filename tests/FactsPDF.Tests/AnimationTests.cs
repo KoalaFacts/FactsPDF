@@ -3,9 +3,9 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 /// <summary>
-/// Animations and their keyframes only run on screen. A written PDF page shows no keyframe, so a
-/// well-formed animation (shorthand or longhand) and a well-formed @keyframes rule are validated
-/// and dropped and the page renders byte-identical to the page without them.
+/// A written PDF page shows an animation at time zero (see AnimationKeyframeStateTests). An animation whose
+/// keyframes do not name it, and keyframes no animation names, change nothing: the page renders byte-identical
+/// to the page without them, and so does a keyframe state that is the value already in effect.
 /// </summary>
 [TestFixture]
 public sealed class AnimationTests
@@ -53,7 +53,7 @@ public sealed class AnimationTests
         Assert.That(Pdf(Report(declarations)), Is.EqualTo(Pdf(Report(""))));
     }
 
-    [TestCase("@keyframes spin{from{opacity:0}to{opacity:1}}")]
+    [TestCase("@keyframes spin{from{opacity:1}to{opacity:1}}")]
     [TestCase("@keyframes fade{0%,50%{opacity:0}100%{opacity:1;color:red}}")]
     [TestCase("@-webkit-keyframes spin{FROM{transform:rotate(0)}TO{transform:rotate(360deg)}}")]
     [TestCase("@keyframes \"slide\"{}")]

@@ -110,7 +110,7 @@ The same stylesheets add `will-change:transform` (or a list such as `transform, 
 
 They also add `transition:all .2s ease` or `transition:none` to buttons, links and panels. A written PDF page is never restyled, so `transition` and its five longhands accept a well-formed transition list and drop the declaration; malformed lists still fail `FPDF1202` (`TransitionTests.cs`).
 
-Likewise `animation:spin 1s linear infinite` and its eight longhands (and `-webkit-` spellings) accept a well-formed animation list, and a well-formed `@keyframes` / `@-webkit-keyframes` rule (one name; `from`, `to` or 0–100% keyframes holding declarations, at the top level or inside `@media print`) is dropped: a written PDF page shows no keyframe. Malformed animation values fail `FPDF1202` and malformed keyframes rules `FPDF1204` (`AnimationTests.cs`).
+Likewise `animation:spin 1s linear infinite` and its eight longhands (and `-webkit-` spellings) accept a well-formed animation list, and a well-formed `@keyframes` / `@-webkit-keyframes` rule (one name; `from`, `to` or 0–100% keyframes holding declarations, at the top level or inside `@media print`) is accepted. A page is printed at animation time zero, so an animation that names the keyframes shows their first (or last) state exactly as Chrome prints it; states between the keyframes and keyframe values the renderer cannot draw (`opacity:0`) fail `FPDF1202` (`AnimationKeyframeStateTests.cs`). Malformed animation values fail `FPDF1202` and malformed keyframes rules `FPDF1204` (`AnimationTests.cs`).
 
 Resets and app stylesheets set `html{scroll-behavior:smooth}`, `overscroll-behavior:none`, `-webkit-overflow-scrolling:touch` or `scrollbar-width:thin`. A PDF page never scrolls, so `scroll-behavior`, `overscroll-behavior` (and its `-x`/`-y`/`-inline`/`-block` longhands), `overflow-anchor`, `-webkit-overflow-scrolling` and `scrollbar-width` accept one keyword and are dropped; other values fail `FPDF1202` (`ScrollOnlyPropertyTests.cs`). Docs and utility stylesheets offset anchored headings with `scroll-margin-top:4rem` or `scroll-padding-top:80px`; a PDF page is never scrolled to an anchor, so `scroll-margin` and `scroll-padding` with their side and axis longhands accept well-formed lengths (and `auto` or percentages for padding) and are dropped, while malformed values fail `FPDF1202`; carousel and slider CSS adds `scroll-snap-type:x mandatory`, `scroll-snap-align:start` and `scroll-snap-stop:always`, whose keywords are dropped the same way. Mobile resets add `-webkit-tap-highlight-color:transparent` (or `rgba(0,0,0,0)`), forms `accent-color`/`caret-color`, and app shells `scrollbar-color`/`scrollbar-gutter:stable`; these accept `auto`, their keywords or a well-formed colour, alpha included, and are dropped (`UiColourPropertyTests.cs`). Modern stylesheets also declare `color-scheme:light dark` and `forced-color-adjust:none`; a PDF page has no preferred or forced colour scheme, so well-formed values are dropped and malformed ones fail `FPDF1202` (`ColorSchemeHintTests.cs`).
 
@@ -165,6 +165,10 @@ Design-token stylesheets declare colours, font sizes and spacing once as custom 
 ### CSS-wide keywords: revert and substituted keywords
 
 `revert` and `revert-layer` work on every property in both modes: the element renders as if the author had declared nothing for that property, so the renderer's user-agent defaults or inheritance apply, and the presentational hint of that property is discarded as in Chrome (`ol{list-style-type:revert}` ignores `type="a"`). A `var()` fallback or substitution that yields one CSS-wide keyword applies as that keyword (`color: var(--x, inherit)`, `var(--x, revert)`), and a custom property set to `revert` or to a substituted `inherit` takes its parent's value ([cascade](css-stylesheets.md#cascade-and-inheritance), `RevertKeywordTests.cs`, `CustomPropertyTests.cs`).
+
+### Sibling combinators, nesting, layers, math and viewport units
+
+`+` and `~` select by element siblings (`SiblingCombinatorTests.cs`); style rules nest with `&`, relative selectors and nested `@media print`/`@layer` (`CssNestingTests.cs`); `@layer` orders the cascade with `!important` reversal and `revert-layer` (`CascadeLayerTests.cs`); `calc()`, `min()`, `max()`, `clamp()` and `vw vh vmin vmax` resolve against the element and the page area (`CssMathTests.cs`). The `width` and `height` attributes of `img`, and the `width` attribute of `table`, `td`, `th`, `col` and `colgroup`, are presentational hints below every author declaration (`HtmlDimensionAttributeTests.cs`); `on*` attributes are accepted and ignored and `<div/>` opens a div like `<div>` (`HtmlSyntaxLeniencyTests.cs`); `padding:auto` and percentage border widths are invalid CSS (`InvalidPaddingAndBorderWidthTests.cs`). Details in [css-stylesheets.md](css-stylesheets.md).
 
 ### Strict and non-strict CSS
 
@@ -281,6 +285,10 @@ exactly `1` or `100%`), nesting, gradients or general CSS Color: unsupported val
 fail `FPDF1202`. Implemented in source `ee5af1a67d8aa88fa23da281ea6ab23414f9ef22`; exact-head CI,
 independent review, private software, human approval and customer
 distribution remain separate.
+
+### Modern colour functions
+
+`lab()`, `lch()`, `oklab()`, `oklch()` and `color(srgb | srgb-linear | display-p3 | a98-rgb | prophoto-rgb | rec2020 | xyz | xyz-d50 | xyz-d65)` convert to sRGB as Chrome writes them into its PDF (XYZ with Bradford adaptation, channel-wise clipping to the sRGB gamut), with alpha (`ModernColorTests.cs`).
 
 ### Opaque `rgb()` and `rgba(…,1)` colours (source-only)
 

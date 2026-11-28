@@ -139,7 +139,7 @@ public sealed class FontRelativeTextSpacingTests
     [TestCase("word-spacing:-0.1rem", "FPDF1202")]
     [TestCase("word-spacing:10%", "FPDF1202")]
     [TestCase("text-indent:-0.2em", "FPDF1202")]
-    [TestCase("text-indent:calc(1pt + 2pt)", "FPDF1202")]
+    [TestCase("text-indent:env(x)", "FPDF1202")]
     [TestCase("text-indent:60rem", "FPDF1302")]
     public void InvalidOrUnsafeInputDoesNotChangeExistingTarget(string css, string code)
         => Rejected("<html style='font-size:14pt'><body><p style='" + css +
