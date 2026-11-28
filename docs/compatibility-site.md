@@ -439,7 +439,7 @@ A candidate change replaces strings in place for the `html.body`, `html.blockquo
 `html.dd`, `html.h1` to `html.h6`, `html.hr`, `html.menu`, `html.ol`, `html.ul`, `html.li`, `html.p`, `html.small`
 and `css.line-height` rows, the list marker rows and the `<body>` sentence shared by the margin rows: the
 supported elements take Chrome's user-agent defaults (the 8px `body` margin, 1em `p`, `dl` and block margins,
-`blockquote` and `figure` insets of 40px, heading sizes and a soft bold, 40px list padding with hanging markers,
+`blockquote` and `figure` insets of 40px, heading sizes and bold (needing a bold chain like `b`), 40px list padding with hanging markers,
 Chrome's `hr` bevel, `big`) and `line-height:normal` reads the first font's metrics. Twenty-one English strings are
 replaced in place, so no count or status moves (full 45, partial 270, none 95; 418 records, 52 accepted CSS property
 names unchanged). Current dataset SHA-256:

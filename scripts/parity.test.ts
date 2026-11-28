@@ -190,6 +190,10 @@ test('ua-stylesheet explains rendered differences and moved decorated bottom edg
   assert.ok(kinds(before, failed).includes('ua-stylesheet'));
   assert.ok(kinds(failed, before).includes('ua-stylesheet'));
   assert.deepEqual(kinds(before, { ...failed, stderr: 'FPDF1302: Table outer width exceeds containing content width or is zero.\n' }), []);
+  const bold = { exitCode: 3, stderr: 'FPDF1507: Supply an explicit font chain for bold text.\nLocation: line 1, column 1.\n', pdf: null };
+  assert.ok(kinds(before, bold).includes('ua-stylesheet'), 'a heading that now needs a bold chain');
+  assert.deepEqual(kinds(before, { ...bold, stderr: 'FPDF1504: No supplied bold font contains U+5217.\n' }), []);
+  assert.deepEqual(kinds(bold, before), []);
   const difference: Difference = { example: 'x.html', set: 'defaults', reason: 'bytes', kind: 'orphans-widows-initial-2', kinds: kinds(before, after) };
   assert.deepEqual(failures([difference], ['ua-stylesheet']), { unexpected: [], unobserved: [] });
   assert.equal(failures([difference], ['location-added']).unexpected.length, 1, 'an unrelated kind still fails it');

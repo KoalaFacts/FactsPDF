@@ -245,9 +245,9 @@ percentage `line-height` overrides it, and the built-in font (no font supplied) 
 What the sheet leaves to the document model, because every element has it by construction: the
 `display` of each element, the centring of `th` and `caption` (the user-agent `-internal-center`,
 which gives way to an inherited alignment), the quotation marks of `q`, and the metadata elements
-that render nothing. A heading's bold is soft: FactsPDF never synthesizes bold, and a heading without a
-bold font chain keeps its regular face instead of failing, whereas `b`, `strong`, `th` and an author's
-`font-weight:bold` still need the chain (`FPDF1507`).
+that render nothing. Headings and `th` are bold by default and behave exactly like `b` and `strong`: FactsPDF never synthesizes bold, so
+without a bold font chain (or with the built-in font, which has no bold) they fail `FPDF1507`, and
+`font-weight:normal` keeps the regular face.
 
 An unmodified `ul{padding:0}` or `*{margin:0;padding:0}` reset now behaves as in Chrome: the list text sits at the
 container's edge and the markers hang to its left, where earlier versions kept a marker gutter inside the list.

@@ -45,6 +45,8 @@
 // margin, 1em paragraph, heading and block margins, heading sizes, list padding, cell padding,
 // font-metric line height ...) below the author's rules, so the content moves. Each example's pages
 // are reviewed against Chrome; an author rule that sets the property keeps winning.
+// A run that rendered before and now fails FPDF1507 is this kind too: headings and th are bold in
+// the sheet, so an example with a heading and no bold font chain needs one (or font-weight:normal).
 // Existing examples otherwise retain strict byte-for-byte parity.
 //
 // --work is a parent folder outside the repository (default: the system temp
@@ -217,6 +219,14 @@ function rendersDifferently(base: RunResult, head: RunResult): boolean {
   return rendered || decoratedOverflow(base, head) || decoratedOverflow(head, base);
 }
 
+const boldFailure = /^FPDF1507: Supply an explicit font chain for bold text\.$/m;
+
+/** Whether the base renders and the head fails only because bold text now needs a bold font chain. */
+function boldChainFailure(base: RunResult, head: RunResult): boolean {
+  return base.exitCode === 0 && base.pdf !== null && head.exitCode === 3 && head.pdf === null &&
+    boldFailure.test(head.stderr.replace(/\r\n/g, '\n'));
+}
+
 const decoratedFailure = /^FPDF1302: Decorated box fragment exceeds the usable page area\.$/m;
 
 /** Whether one side renders and the other fails only at a decorated box's bottom edge. */
@@ -262,6 +272,7 @@ export function classifyDifferences(base: RunResult, head: RunResult, newExample
     if (hasBlock) kinds.push('block-margin-collapse');
     kinds.push('ua-stylesheet');
   }
+  if (!newExample && boldChainFailure(base, head)) kinds.push('ua-stylesheet');
   if (kinds.length > 0 || base.exitCode !== head.exitCode || base.exitCode === 0 || base.pdf !== null || head.pdf !== null) {
     return kinds;
   }
