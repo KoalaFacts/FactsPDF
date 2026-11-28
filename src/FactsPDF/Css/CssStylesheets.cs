@@ -89,6 +89,9 @@ internal sealed class CssStylesheets
     /// <summary>The compiled <c>@page</c> rules, or null when the stylesheets have none.</summary>
     internal CssPageRules? PageRules { get; private set; }
 
+    /// <summary>Whether any declaration sets a counter or prints one, so the reader tracks counters.</summary>
+    internal bool UsesCounters => budget.UsesCounters;
+
     private CssStylesheets(PdfOptions options, CancellationToken token)
     {
         if (options.MaxCssCharacters < 1 || options.MaxCssSelectors < 1 || options.MaxCssDeclarations < 1 || options.MaxCssMatchOperations < 1 || options.MaxCssCustomProperties < 1)
@@ -571,7 +574,8 @@ internal sealed class CssStylesheets
             // object-fit and object-position fit an img's pixels into its content box. Every element
             // records them, since a child may inherit them, but only an img has replaced content to
             // place (an inline svg ignores them as well).
-            if (declaration.Property is CssProperty.ObjectFit or CssProperty.ObjectPosition or CssProperty.TableLayout)
+            if (declaration.Property is CssProperty.ObjectFit or CssProperty.ObjectPosition or CssProperty.TableLayout
+                or CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet)
             {
                 var fitCandidate = new Winner(declaration, isInline, specificity); var fitOld = winners[(int)declaration.Property];
                 if (!fitOld.HasValue || fitCandidate.Beats(fitOld.Value)) winners[(int)declaration.Property] = fitCandidate;

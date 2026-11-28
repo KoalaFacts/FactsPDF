@@ -13,6 +13,20 @@ internal static class HtmlDocumentReader
 
     // The text and computed style of an inline ::before or ::after box.
     private sealed record GeneratedText(string Text, TextStyle Style);
+
+    // A ::before or ::after box whose style is computed but whose content is not yet known: its counters
+    // are read when the box is placed (::before after its element opens, ::after when it closes), after
+    // the counters its element and children changed. Result caches the realised box.
+    private sealed class PendingPseudo(bool block, string content, TextStyle style, BoxStyle box, int offset)
+    {
+        internal readonly bool Block = block;
+        internal readonly string Content = content;
+        internal readonly TextStyle Style = style;
+        internal readonly BoxStyle Box = box;
+        internal readonly int Offset = offset;
+        internal bool Done;
+        internal object? Result;
+    }
     internal static bool ParagraphTag(string name) => name is "p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6";
     internal static bool ListTag(string name) => name is "ol" or "ul" or "menu";
 
@@ -254,6 +268,8 @@ internal static class HtmlDocumentReader
         TextStyle? centredSource = null, centredStyle = null;
         var rootFontSize = root.FontSize; // Actual html computed size or configured initial size.
         var stack = new List<Frame> { new("#root", root, BoxStyle.Initial, null) };
+        // CSS counters, tracked only when a stylesheet sets or prints one.
+        var counterScopes = sheets.UsesCounters ? new CounterScopes() : null;
         var path = new List<CssElement>(); // Actual elements only; the synthetic document root is not selectable.
         var result = new DocumentRoot { PageRules = sheets.PageRules };
         Paragraph? current = null;
@@ -347,10 +363,11 @@ internal static class HtmlDocumentReader
             if (closing.Box is not null && table?.Cell is not null) cellBlocks--;
             stack.RemoveAt(stack.Count - 1);
             path.RemoveAt(path.Count - 1);
+            counterScopes?.Close(stack.Count - 1);
         }
         // The open element's ::after: inline text joins its content, a block box is its last child.
-        void AfterText() { if (stack[^1].After is GeneratedText text) Add(text.Text, text.Style); }
-        void AfterBox() { if (stack[^1].After is BlockNode box) children.Add(box); }
+        void AfterText() { if (Realize(stack[^1].After) is GeneratedText text) Add(text.Text, text.Style); }
+        void AfterBox() { if (Realize(stack[^1].After) is BlockNode box) children.Add(box); }
         void Close() { AfterText(); Flush(); AfterBox(); Pop(); }
         // Computes an element's ::before or ::after (the element is the last entry of path) and
         // returns the box it generates: a block box (in a flex container, or with display:block or
@@ -360,7 +377,7 @@ internal static class HtmlDocumentReader
             // A replaced image generates no ::before or ::after box in a browser.
             if (name == "img") return null;
             var (display, content) = sheets.PseudoKeys(path, pseudo);
-            if (content is null || content[0] != '"' || display == "none") return null;
+            if (content is null || content[0] is not ('"' or CounterContent.Marker) || display == "none") return null;
             var block = box.HasItems || display is "block" or "flex";
             if (display is not (null or "block" or "flex" or "inline"))
                 throw new FactsPdfException("FPDF1201",
@@ -377,16 +394,76 @@ internal static class HtmlDocumentReader
                 paragraph: false, block: block, offset, default, pseudo: pseudo, pseudoName: block ? "div" : "span");
             if (generatedStyle.FontSize is < 1 or > 144)
                 throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", offset);
-            var text = content[1..];
-            if (!block) return new GeneratedText(text, generatedStyle);
-            var node = new BlockNode("div", generatedStyle, generatedBox, offset);
+            return new PendingPseudo(block, content, generatedStyle, generatedBox, offset);
+        }
+        // Places a pseudo-element box: applies its own counter properties, evaluates its content against
+        // the counters in scope (the stack's innermost frame is its originating element) and builds the
+        // inline text or block box. Done once; ::after is realised when its element closes.
+        object? Realize(object? pending)
+        {
+            if (pending is not PendingPseudo pseudo) return null;
+            if (pseudo.Done) return pseudo.Result;
+            pseudo.Done = true;
+            string text;
+            if (CounterContent.IsEncoded(pseudo.Content))
+            {
+                // A subtree that display:none removes has no boxes, so counters there change nothing.
+                if (InHiddenSubtree() || pseudo.Box.DisplayNone) text = "";
+                else
+                {
+                    counterScopes!.SetTop(stack.Count - 1);
+                    counterScopes.Apply(pseudo.Box.Counters);
+                    text = CounterContent.Evaluate(pseudo.Content, counterScopes, pseudo.Offset);
+                    // A counter the pseudo-element nested under an outer one is out of scope after it.
+                    counterScopes.Close(stack.Count - 1);
+                }
+            }
+            else
+            {
+                if (counterScopes is not null && !InHiddenSubtree() && !pseudo.Box.DisplayNone)
+                {
+                    counterScopes.SetTop(stack.Count - 1);
+                    counterScopes.Apply(pseudo.Box.Counters);
+                    counterScopes.Close(stack.Count - 1);
+                }
+                text = pseudo.Content[1..];
+            }
+            if (!pseudo.Block) return pseudo.Result = new GeneratedText(text, pseudo.Style);
+            var node = new BlockNode("div", pseudo.Style, pseudo.Box, pseudo.Offset);
             if (text.Length > 0)
             {
-                var paragraph = new Paragraph(generatedStyle, offset) { IsAnonymous = true };
-                paragraph.Runs.Add(new(text, generatedStyle, false, offset));
+                var paragraph = new Paragraph(pseudo.Style, pseudo.Offset) { IsAnonymous = true };
+                paragraph.Runs.Add(new(text, pseudo.Style, false, pseudo.Offset));
                 node.Add(paragraph);
             }
-            return node;
+            return pseudo.Result = node;
+        }
+        bool InHiddenSubtree()
+        {
+            for (var i = stack.Count - 1; i > 0; i--)
+                if (stack[i].BoxStyle.DisplayNone) return true;
+            return false;
+        }
+        // Applies an element's own counter properties and the user-agent list counters (ol and ul reset
+        // list-item, li increments it) in document order. An element with display:none, or inside one,
+        // has no box and counts nothing.
+        void ApplyCounters(string name, BoxStyle box, int? listStart, int? listValue, bool listReversed, int offset)
+        {
+            if (counterScopes is null) return;
+            counterScopes.SetTop(stack.Count - 1);
+            if (box.DisplayNone || InHiddenSubtree()) return;
+            foreach (var author in new[] { box.Counters.Reset, box.Counters.Increment, box.Counters.Set })
+                if (author is not null && Array.Exists(author, op => op.Name == "list-item"))
+                    throw new FactsPdfException("FPDF1201",
+                        "Changing the list-item counter with counter-reset, counter-increment or counter-set is not supported; list markers number themselves.", offset);
+            if (name is "ol") counterScopes.Reset("list-item", (listStart ?? 1) - 1, listReversed);
+            else if (name is "ul" or "menu") counterScopes.Reset("list-item", 0);
+            counterScopes.Apply(box.Counters);
+            // Chrome numbers counter(list-item) by the ol start and one per li; the li value attribute
+            // changes the marker only.
+            if (name == "li") counterScopes.Increment("list-item", 1);
+            // An element that opens no frame has no descendants for a nested counter to serve.
+            if (name is "br" or "img" or "svg" or "hr" or "col") counterScopes.Close(stack.Count - 1);
         }
         void Add(string text, TextStyle style, bool lineBreak = false)
         {
@@ -726,6 +803,7 @@ internal static class HtmlDocumentReader
                     ParagraphTag(name), BoxTag(name),
                     token.Offset, (token as StyledHtmlToken)?.InlineDeclarations ?? default, allowStyling: name != "br", hidden: hidden, listTypeHint: listTypeHint);
             if (style.FontSize is < 1 or > 144) throw new FactsPdfException("FPDF1202", "Computed font size is outside the supported range.", token.Offset);
+            if (name is not ("head" or "title")) ApplyCounters(name, boxStyle, listStart, listValue, listReversed, token.Offset);
             var winningTextAlign = name is "head" or "title" ? null : sheets.LastTextAlign;
             var alignStart = winningTextAlign switch
             {
@@ -773,7 +851,7 @@ internal static class HtmlDocumentReader
                 table!.Start(name, style, boxStyle, token.Offset, columnSpan);
                 if (name == "col") { path.RemoveAt(path.Count - 1); continue; }
                 stack.Add(new(name, style, boxStyle, null, token.Offset, 0, alignStart, After: after));
-                if (before is GeneratedText cellText) Add(cellText.Text, cellText.Style);
+                if (Realize(before) is GeneratedText cellText) Add(cellText.Text, cellText.Style);
                 continue;
             }
             if (name == "img")
@@ -834,8 +912,9 @@ internal static class HtmlDocumentReader
                     || boxStyle.PaddingBottom.Value != 0 || boxStyle.PaddingLeft.Value != 0))
                     currentPadding = boxStyle;
             }
-            if (before is BlockNode beforeBox) children.Add(beforeBox);
-            else if (before is GeneratedText beforeText) Add(beforeText.Text, beforeText.Style);
+            var realizedBefore = Realize(before);
+            if (realizedBefore is BlockNode beforeBox) children.Add(beforeBox);
+            else if (realizedBefore is GeneratedText beforeText) Add(beforeText.Text, beforeText.Style);
         }
         // HTML permits omitted p/body/html end tags; other unclosed elements are rejected here.
         while (table is null && stack.Count > 1 && stack[^1].Name is "p" or "body" or "html")

@@ -262,6 +262,7 @@ internal static class CssDeclarations
         or CssProperty.BorderBottomRightRadius or CssProperty.BorderBottomLeftRadius
         or CssProperty.OutlineWidth or CssProperty.OutlineStyle or CssProperty.OutlineColor or CssProperty.OutlineOffset
         or CssProperty.BackgroundClip or CssProperty.TableLayout or CssProperty.ObjectFit or CssProperty.ObjectPosition
+        or CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet
         || CssFlexValues.IsFlexOrGridProperty(property);
 
     // Vertical panel margins have a distinct box-level meaning: they sit
@@ -419,6 +420,18 @@ internal static class CssDeclarations
                 current.MarginRight = wide ? from.MarginRight : length;
                 current.MarginRightAuto = wide ? from.MarginRightAuto : auto;
             }
+            return current;
+        }
+        if (property is CssProperty.CounterReset or CssProperty.CounterIncrement or CssProperty.CounterSet)
+        {
+            var source = value == "inherit" ? parent.Counters : wide ? CounterOps.None : null;
+            var list = source is null ? CounterOps.Parse(value) : null;
+            current.Counters = property switch
+            {
+                CssProperty.CounterReset => current.Counters with { Reset = source is null ? list : source.Reset },
+                CssProperty.CounterIncrement => current.Counters with { Increment = source is null ? list : source.Increment },
+                _ => current.Counters with { Set = source is null ? list : source.Set }
+            };
             return current;
         }
         if (property == CssProperty.TableLayout)

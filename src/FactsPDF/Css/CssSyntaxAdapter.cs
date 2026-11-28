@@ -171,6 +171,15 @@ internal static class CssSyntaxAdapter
                     CompileGridColumns(node, budget, output);
                     continue;
                 }
+                // counter-reset, counter-increment and counter-set: a list of counter names with optional
+                // integers, kept as normalised "name value" pairs and applied by the reader in document order.
+                if (name is "counter-reset" or "counter-increment" or "counter-set")
+                {
+                    budget.UsesCounters = true;
+                    output.Add(CssDeclaration.Create(property, name, CounterList(node, name == "counter-increment" ? 1 : 0),
+                        node.Important, fixedOrder != 0 ? fixedOrder : budget.Declaration(node.Span.Start), node.Span.Start));
+                    continue;
+                }
                 // background-clip: the clip of the first background layer paints the colour (one layer,
                 // since the image is none); a later list item names a layer that does not exist.
                 if (name == "background-clip")
@@ -1070,6 +1079,65 @@ internal static class CssSyntaxAdapter
         _ => null
     };
 
+    // The value of a counter-reset, counter-increment or counter-set: none, a CSS-wide keyword, or one or
+    // more counter names (case-sensitive custom identifiers) each with an optional integer, as "name value"
+    // pairs separated by spaces.
+    private static string CounterList(CssDeclarationNode node, int defaultValue)
+    {
+        var pairs = new System.Text.StringBuilder();
+        string? name = null;
+        var count = 0;
+        var any = false;
+        void Finish(int value)
+        {
+            if (name is null) return;
+            if (pairs.Length > 0) pairs.Append(' ');
+            pairs.Append(name).Append(' ').Append(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            name = null;
+        }
+        for (var i = 0; i < node.Values.Count; i++)
+        {
+            var component = node.Values[i];
+            if (component is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            any = true;
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word })
+            {
+                Finish(defaultValue);
+                var lower = word.Value.ToLowerInvariant();
+                if (Wide(lower) || lower is "none" or "default")
+                {
+                    if (count == 0 && i == LastValue(node) && lower != "default") return lower;
+                    throw new FactsPdfException("FPDF1202", "A counter name cannot be none, default or a CSS-wide keyword; none and the CSS-wide keywords stand alone.", component.Span.Start);
+                }
+                if (word.Value.Any(char.IsWhiteSpace))
+                    throw new FactsPdfException("FPDF1202", "A counter name cannot contain white space.", component.Span.Start);
+                name = word.Value;
+                count++;
+                continue;
+            }
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Number, IsInteger: true } number } && name is not null
+                && long.TryParse(number.Value, System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            {
+                Finish((int)Math.Clamp(parsed, int.MinValue, int.MaxValue));
+                continue;
+            }
+            throw new FactsPdfException("FPDF1202",
+                "Counter properties take none or counter names with optional integers.", component.Span.Start);
+        }
+        if (!any) throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
+        Finish(defaultValue);
+        return pairs.ToString();
+    }
+
+    // The index of the last non-whitespace component of a declaration value.
+    private static int LastValue(CssDeclarationNode node)
+    {
+        for (var i = node.Values.Count - 1; i >= 0; i--)
+            if (node.Values[i] is not CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) return i;
+        return -1;
+    }
+
     private static bool IsBackgroundLayerNoOp(string name) =>
         name is "background-repeat" or "background-position" or "background-size";
 
@@ -1903,6 +1971,9 @@ internal static class CssSyntaxAdapter
         "background-clip" => CssProperty.BackgroundClip,
         "object-fit" => CssProperty.ObjectFit,
         "table-layout" => CssProperty.TableLayout,
+        "counter-reset" => CssProperty.CounterReset,
+        "counter-increment" => CssProperty.CounterIncrement,
+        "counter-set" => CssProperty.CounterSet,
         "object-position" => CssProperty.ObjectPosition,
         "border-inline-width" or "border-inline-start-width" => CssProperty.BorderLeftWidth,
         "border-inline-end-width" => CssProperty.BorderRightWidth,
@@ -2109,9 +2180,12 @@ internal static class CssSyntaxAdapter
 
     private static void CompileContent(CssDeclarationNode node, CssBudget budget, List<CssDeclaration> output)
     {
-        var text = new System.Text.StringBuilder();
+        // The items in order: literal text and counter references. Without a counter the value is the
+        // plain joined text; with one it is encoded (see CounterContent).
+        var items = new List<(char Kind, string A, string B, string C)>();
         string? keyword = null;
         var strings = 0;
+        var counters = false;
         var start = node.Span.Start;
         var first = true;
         for (var i = 0; i < node.Values.Count; i++)
@@ -2121,24 +2195,93 @@ internal static class CssSyntaxAdapter
             if (first) { start = component.Span.Start; first = false; }
             if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.String } literal } && keyword is null)
             {
-                text.Append(literal.Value);
+                items.Add(('T', literal.Value, "", ""));
                 strings++;
                 continue;
             }
-            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word } && strings == 0 && keyword is null
+            if (component is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } word } && strings == 0 && items.Count == 0 && keyword is null
                 && word.Value.ToLowerInvariant() is "none" or "normal" or "inherit" or "initial" or "unset")
             {
                 keyword = word.Value.ToLowerInvariant();
                 continue;
             }
+            if (component is CssFunctionComponent function && keyword is null
+                && function.Name.ToLowerInvariant() is "counter" or "counters")
+            {
+                items.Add(CounterReference(function));
+                counters = true;
+                continue;
+            }
             throw new FactsPdfException("FPDF1202",
-                "content supports only none, normal and strings; counter(), attr(), url() and quotes are not supported.",
+                "content supports only none, normal, strings, counter() and counters(); attr(), url() and quotes are not supported.",
                 component.Span.Start);
         }
-        if (keyword is null && strings == 0)
+        if (keyword is null && items.Count == 0)
             throw new FactsPdfException("FPDF1202", "Empty CSS declaration.", node.Span.Start);
-        output.Add(CssDeclaration.Create(CssProperty.Content, "content", keyword ?? "\"" + text,
+        string value;
+        if (keyword is not null) value = keyword;
+        else if (!counters)
+        {
+            var text = new System.Text.StringBuilder();
+            foreach (var item in items) text.Append(item.A);
+            value = "\"" + text;
+        }
+        else
+        {
+            budget.UsesCounters = true;
+            var encoded = new System.Text.StringBuilder().Append(CounterContent.Marker);
+            foreach (var (kind, a, b, c) in items)
+            {
+                if (kind == 'T') CounterContent.AppendText(encoded, a);
+                else if (kind == 'C') CounterContent.AppendCounter(encoded, a, c);
+                else CounterContent.AppendCounters(encoded, a, b, c);
+            }
+            value = encoded.ToString();
+        }
+        output.Add(CssDeclaration.Create(CssProperty.Content, "content", value,
             node.Important, budget.Declaration(start), start));
+    }
+
+    // counter(name, style?) or counters(name, separator, style?): the counter name is case-sensitive, the
+    // style one of the supported counter styles (decimal by default).
+    private static (char Kind, string A, string B, string C) CounterReference(CssFunctionComponent function)
+    {
+        var arguments = new List<List<CssSyntaxComponent>> { new() };
+        foreach (var part in function.Values)
+        {
+            if (part is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Whitespace }) continue;
+            if (part is CssTokenComponent { Token.Kind: CssSyntaxTokenKind.Comma }) arguments.Add([]);
+            else arguments[^1].Add(part);
+        }
+        var plural = function.Name.Equals("counters", StringComparison.OrdinalIgnoreCase);
+        var expected = plural ? 2 : 1;
+        if (arguments.Count is < 1 || arguments.Count < expected || arguments.Count > expected + 1
+            || arguments.Any(argument => argument.Count != 1))
+            throw new FactsPdfException("FPDF1202", plural
+                ? "counters() takes a counter name, a separator string and an optional counter style."
+                : "counter() takes a counter name and an optional counter style.", function.Span.Start);
+        string Name(List<CssSyntaxComponent> argument) =>
+            argument[0] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token } && !Wide(token.Value.ToLowerInvariant())
+                && token.Value.ToLowerInvariant() is not ("none" or "default") && !token.Value.Any(char.IsWhiteSpace)
+                ? token.Value
+                : throw new FactsPdfException("FPDF1202", "A counter name must be an identifier.", argument[0].Span.Start);
+        var name = Name(arguments[0]);
+        var separator = "";
+        if (plural)
+            separator = arguments[1][0] is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.String } text } ? text.Value
+                : throw new FactsPdfException("FPDF1202", "counters() needs a separator string.", arguments[1][0].Span.Start);
+        var style = "decimal";
+        if (arguments.Count == expected + 1)
+        {
+            var argument = arguments[^1][0];
+            style = argument is CssTokenComponent { Token: { Kind: CssSyntaxTokenKind.Ident } token } ? token.Value.ToLowerInvariant()
+                : throw new FactsPdfException("FPDF1202", "A counter style must be an identifier.", argument.Span.Start);
+            if (!CounterStyles.Supported(style))
+                throw new FactsPdfException("FPDF1202",
+                    "counter styles supported are decimal, decimal-leading-zero, lower-alpha, lower-latin, upper-alpha, upper-latin, lower-roman, upper-roman and none.",
+                    argument.Span.Start);
+        }
+        return plural ? ('S', name, separator, style) : ('C', name, "", style);
     }
 
     private static void CompileGridColumns(CssDeclarationNode node, CssBudget budget, List<CssDeclaration> output)
