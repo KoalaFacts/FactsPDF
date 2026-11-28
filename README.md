@@ -60,6 +60,7 @@ stdin/stdout). Common options:
 | `--margin 15mm` | Uniform page margin (default 36pt) |
 | `--title`, `--author`, `--subject`, `--keywords` | PDF document properties |
 | `--font`, `--font-bold`, `--font-italic`, `--font-bold-italic` | TrueType font files, see [below](#fonts-and-images) |
+| `--font-face path`, `--font-family name=path`, `--font-generic generic=family`, `--font-resource url=path` | Register families for CSS `font-family`, map generic families, bind `@font-face` sources (TTF, WOFF, WOFF2, TTC), see [font families](docs/font-styles.md#font-families-and-font-face) |
 | `--subset-fonts` | Embed only the glyphs used |
 | `--image name=path.png` | Bind an image resource, see [below](#fonts-and-images) |
 | `--overwrite` | Allow replacing an existing output file |

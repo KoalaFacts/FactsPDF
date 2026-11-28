@@ -83,6 +83,25 @@ Do not relabel a normal font as proof of a real bold or italic face. FactsPDF
 does not synthesize these styles. The complete command may declare at most
 eight font paths across all roles. See [font styles](font-styles.md).
 
+When the diagnostic names a `font-family`, the text matched a registered or
+`@font-face` family that has no face of the requested weight or style, where
+Chrome would synthesize one. Register the family's real bold or italic face
+(`--font-face path`, or another `@font-face` rule with `font-weight:bold` or
+`font-style:italic`). See [font families](font-styles.md#font-families-and-font-face).
+
+## FPDF1508: an @font-face source is not bound
+
+A `src: url(...)` in `@font-face` is matched against font resources you bind by
+its exact URL text; nothing is downloaded. For
+`src: url(fonts/Brand.woff2) format("woff2")`:
+
+```sh
+dotnet run --project src/FactsPDF.Cli -c Release -- input.html output.pdf --font /path/to/Fallback.ttf --font-resource fonts/Brand.woff2=/path/to/Brand.woff2
+```
+
+In .NET, use `WithFontResource("fonts/Brand.woff2", PdfFont.FromFile(path))`.
+A face is loaded only when text uses it, so unused rules need no resource.
+
 ## FPDF1604: an image resource is not bound
 
 An HTML `src` is an ordinal resource name, not a request to open a file or URL.
