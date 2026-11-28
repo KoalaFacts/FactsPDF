@@ -165,7 +165,7 @@ A summary only. **For any specific property or value, look it up on
 
 - Arbitrary webpages, JavaScript, external stylesheets or any network loading.
 - Multi-line or column flexbox, explicit grid placement and rows, floats and positioning; CSS Paged Media beyond `@page` size, margins and the six top/bottom margin boxes.
-- Automatic table column widths, `rowspan` and nested tables.
+- `rowspan` and tables nested more than three levels deep.
 - System font discovery, CSS `font-family` matching, synthetic bold/italic,
   complex-script shaping, right-to-left and vertical text.
 - Transparency, gradients, SVG image files, SVG text and `use`, interlaced or

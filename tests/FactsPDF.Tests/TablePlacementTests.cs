@@ -89,10 +89,9 @@ public sealed class TablePlacementTests
     }
 
     [Test]
-    public void TablesStillFailInsideHeadingsAndOtherTables()
+    public void TablesStillFailInsideHeadings()
     {
         Fails("<h2>Head" + Table + "</h2>", "FPDF1101");
-        Fails("<table><tr><td>" + Table + "</td></tr></table>", "FPDF1101");
     }
 
     [Test]

@@ -57,8 +57,53 @@ public sealed class TableFooterElementTests
         => Assert.That(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(30)}</tbody><tfoot>{Rows(3, 30)}</tfoot></table>"),
             Is.EqualTo(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(33)}</tbody></table>")));
 
-    [TestCase("<table style='width:180pt'>" + Columns + "<tfoot><tr><td>A</td><td>B</td></tr></tfoot><tbody><tr><td>A</td><td>B</td></tr></tbody></table>", "FPDF1101")]
-    [TestCase("<table style='width:180pt'>" + Columns + "<tfoot><tr><td>A</td><td>B</td></tr></tfoot></table>", "FPDF1101")]
+    // Chrome draws a table that has only a tfoot (invoice totals) as its footer rows alone, and a
+    // tfoot written before the tbody (or the thead) after the body rows; measured against its printed PDF.
+    [Test]
+    public void ATableWithOnlyAFooterRendersLikeThoseRowsInABody()
+        => Assert.That(Pdf($"<table style='width:180pt'>{Columns}<tfoot>{Rows(3)}</tfoot></table><p>AB</p>"),
+            Is.EqualTo(Pdf($"<table style='width:180pt'>{Columns}<tbody>{Rows(3)}</tbody></table><p>AB</p>")));
+
+    [Test]
+    public void AFooterOnlyTableWithoutColumnsTakesItsColumnsFromTheFirstFooterRow()
+        => Assert.That(Pdf($"<table><tfoot><tr><td colspan='2'></td><td>WAB</td></tr><tr><td>A</td><td>B</td><td>W</td></tr></tfoot></table>"),
+            Is.EqualTo(Pdf($"<table><tbody><tr><td colspan='2'></td><td>WAB</td></tr><tr><td>A</td><td>B</td><td>W</td></tr></tbody></table>")));
+
+    [Test]
+    public void AHeaderAndAFooterWithoutABodyRenderLikeHeaderAndBodyRows()
+        => Assert.That(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tfoot>{Rows(2)}</tfoot></table><p>AB</p>"),
+            Is.EqualTo(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(2)}</tbody></table><p>AB</p>")));
+
+    [Test]
+    public void AFooterWrittenBeforeTheBodyIsLaidOutAfterIt()
+    {
+        var footer = "<tfoot><tr><td>WAB</td><td>BW</td></tr></tfoot>";
+        var after = $"<table style='width:180pt'>{Columns}<tbody>{Rows(3)}</tbody>{footer}</table><p>AB</p>";
+        Assert.That(Pdf($"<table style='width:180pt'>{Columns}{footer}<tbody>{Rows(3)}</tbody></table><p>AB</p>"), Is.EqualTo(Pdf(after)));
+        Assert.That(Pdf($"<table style='width:180pt'>{Columns}{footer}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(3)}</tbody></table><p>AB</p>"),
+            Is.EqualTo(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(3)}</tbody>{footer}</table><p>AB</p>")));
+    }
+
+    // Over-correction: moving the footer must not move its group's own paint or cascade with it
+    // to the wrong place, nor reorder the body rows.
+    [Test]
+    public void AFooterBeforeTheBodyKeepsItsOwnStylingAndTheBodyRowsKeepTheirOrder()
+    {
+        const string css = "<style>td{border:1pt solid #333;padding:2pt}tfoot{background-color:#eee;color:#c00}</style>";
+        var footer = "<tfoot><tr><td>WAB</td><td>BW</td></tr></tfoot>";
+        Assert.That(Pdf($"{css}<table style='width:180pt'>{Columns}{footer}<tbody>{Rows(4)}</tbody></table>"),
+            Is.EqualTo(Pdf($"{css}<table style='width:180pt'>{Columns}<tbody>{Rows(4)}</tbody>{footer}</table>")));
+        Assert.That(Pdf($"{css}<table style='width:180pt;border-collapse:collapse'>{Columns}{footer}<tbody>{Rows(4)}</tbody></table>"),
+            Is.EqualTo(Pdf($"{css}<table style='width:180pt;border-collapse:collapse'>{Columns}<tbody>{Rows(4)}</tbody>{footer}</table>")));
+    }
+
+    [Test]
+    public void AFooterBeforeTheBodyStillPaginatesAfterTheBodyRows()
+        => Assert.That(Pdf($"<table style='width:180pt'>{Columns}<tfoot>{Rows(3, 30)}</tfoot><thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(30)}</tbody></table>"),
+            Is.EqualTo(Pdf($"<table style='width:180pt'>{Columns}<thead><tr><th>A</th><th>B</th></tr></thead><tbody>{Rows(30)}</tbody><tfoot>{Rows(3, 30)}</tfoot></table>")));
+
+    [TestCase("<table style='width:180pt'>" + Columns + "<thead><tr><th>A</th><th>B</th></tr></thead></table>", "FPDF1101")]
+    [TestCase("<table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><thead><tr><th>A</th><th>B</th></tr></thead><tfoot><tr><td>A</td><td>B</td></tr></tfoot></table>", "FPDF1101")]
     [TestCase("<table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><tfoot></tfoot></table>", "FPDF1101")]
     [TestCase("<table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><tfoot><tr><td>A</td></tr></tfoot></table>", "FPDF1101")]
     [TestCase("<table style='width:180pt'>" + Columns + "<tbody><tr><td>A</td><td>B</td></tr></tbody><tfoot><tr><td>A</td><td>B</td></tr></tfoot><tfoot><tr><td>A</td><td>B</td></tr></tfoot></table>", "FPDF1101")]

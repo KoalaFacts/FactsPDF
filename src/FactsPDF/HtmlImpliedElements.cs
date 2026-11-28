@@ -30,6 +30,8 @@ internal sealed class HtmlImpliedElements
     private string? openInHead;
     // Inside a table: whether a row group is open, and whether it is a tbody this class implied.
     private bool inTable, sectionOpen, impliedSection;
+    // The state of each table a nested table (in one of its cells) interrupts, innermost last.
+    private readonly Stack<(bool Section, bool Implied)> outerTables = new();
 
     private static bool HeadContent(string name) => name is "style" or "script" or "template" or "title" or "meta" or "link" or "base";
 
@@ -123,7 +125,11 @@ internal sealed class HtmlImpliedElements
         var name = token.Value;
         if (token.Kind == HtmlTokenKind.Start)
         {
-            if (name == "table") { inTable = true; sectionOpen = impliedSection = false; }
+            if (name == "table")
+            {
+                if (inTable) outerTables.Push((sectionOpen, impliedSection));
+                inTable = true; sectionOpen = impliedSection = false;
+            }
             else if (inTable && name is "thead" or "tbody" or "tfoot")
             {
                 if (impliedSection) tokens.Add(TableBodyEnd);
@@ -141,7 +147,8 @@ internal sealed class HtmlImpliedElements
             else if (name == "table")
             {
                 if (impliedSection) tokens.Add(TableBodyEnd);
-                inTable = sectionOpen = impliedSection = false;
+                if (outerTables.Count > 0) (sectionOpen, impliedSection) = outerTables.Pop();
+                else inTable = sectionOpen = impliedSection = false;
             }
         }
         tokens.Add(token);

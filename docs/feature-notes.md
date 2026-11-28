@@ -1104,10 +1104,30 @@ and `min-width`/`max-width` limit the table's used width (`min-width` wins). An 
 `*{margin:0;padding:0}` resets leave the items at the container's left edge. Explicit failures
 remain where Chrome cannot be matched: a row with a list that must split across pages (a row
 with a list moves whole, like any row), a marked list item that starts with a table, a
-`max-width` below the explicit column widths of a table, and a table inside another table,
-heading or `pre`. See [lists in cells](tables.md#lists-in-cells),
+`max-width` below the explicit column widths of a table, and a table inside a heading or
+`pre` (a table directly in a cell is [nested](tables.md#tables-in-cells)). See [lists in cells](tables.md#lists-in-cells),
 [table width constraints](tables.md#table-width-constraints) and
 [tables as flex and grid items](tables.md#tables-as-flex-and-grid-items).
+
+### Tables in table cells, footer-only tables and free-text link targets (source-only)
+
+Real report templates nest a table in a colspan cell (`<td colspan="3"><table><tr
+style="background-color:transparent"><td style="width:160px">…</td>…</tr></table></td>`),
+print invoice totals as a table of only a `tfoot`, and put free text in `a href`. All three now
+print as Chrome prints them (within 0.75pt on synthetic probes; the `j1`–`j4` oracle fixtures within
+0.15pt): the inner table is cell content laid out with automatic widths in the cell's content width,
+the outer row grows to fit and moves whole to the next page like a row with a list; a table may
+consist of a `tfoot` alone, of a `thead` and a `tfoot` without `tbody`, and a `tfoot` before the
+`tbody` is laid out after it; and in non-strict mode an `href` that is not an absolute HTTPS or
+mailto URL draws its text as a link without any annotation and reports `FPDF1103` as a warning
+(strict mode keeps the failure). Explicit failures remain where Chrome cannot be matched: tables
+nested more than three levels (`FPDF1003`), a table anywhere but directly in a `td`/`th`
+(`FPDF1101`), an inner table wider than the outer cell can give (`FPDF1302`; Chrome overflows), a
+row whose nested table must split across pages (`FPDF1302`), a second `tfoot`, a second `tbody`,
+a `thead` after the `tbody` or alone (`FPDF1101`). Not matched silently: Chrome splits an outer row
+between the inner table's rows and repeats a `tfoot` on every page of a continued table; FactsPDF
+moves the row whole and draws the footer once. See [tables in cells](tables.md#tables-in-cells) and
+[structure](tables.md#structure-and-placement).
 
 ### `min-width` / `max-width` constraints (source-only)
 
@@ -1433,7 +1453,13 @@ host and no embedded credentials, or a single plain unquoted ASCII `mailto:` mai
 DNS-style labels (not a quoted mailbox, address literal, path or port), without
 query parameters. URL length is limited to 2048 characters, percent escapes
 must be well formed. An invalid/relative/HTTP/file/JavaScript URL or missing
-`href` fails `FPDF1103` without replacing an existing PDF. Nested anchors,
+`href` fails `FPDF1103` without replacing an existing PDF, except in non-strict
+mode (`--strict=false`, `WithStrict(false)`), where an `href` that is not such a
+URL (free text, a relative path, a fragment, `http:`, `javascript:`, `file:`) still
+draws its text exactly as an ordinary link looks (blue, underlined, byte-identical
+to that text in a `span`), writes **no** link annotation and reports the same
+`FPDF1103` as a warning at the `<a>`; no unsafe target is ever written to the PDF
+(`LinkHrefFallbackTests.cs`). An `a` without any `href` still fails. Nested anchors,
 block descendants and general DOM navigation fail. `target` (`_blank`, `_self`,
 `_parent`, `_top` or a name) and hyperlink `rel` types (`noopener`, `noreferrer`,
 `nofollow`, `external`, `sponsored`, `ugc` …) are validated and ignored, since a

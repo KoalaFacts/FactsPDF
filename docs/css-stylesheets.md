@@ -2,7 +2,7 @@
 
 Explicitly bounded `td/th` can declare `white-space`, `word-break` and `overflow-wrap` on the cell itself. Computed winners reach its anonymous text and flat `p` by inheritance; child paragraphs can override or reset them. Measured column content widths and existing `TextLines.Wrap` produce real PDF spaces, glyph positions, wraps, repeat headers and page breaks, rather than silently accepting declarations. This removes the need to insert a styled `p` in every table cell of a commercial report.
 
-Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all/break-word` and `overflow-wrap:normal/break-word/anywhere`. No break-spaces/keep-all, nested tables, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
+Bounded values only: `white-space:normal/nowrap/pre-line/pre-wrap/pre`, `word-break:normal/break-all/break-word` and `overflow-wrap:normal/break-word/anywhere`. No break-spaces/keep-all, structural `table/col/colgroup/tr/thead/tbody/tfoot`, inline spans or list CSS. Invalid values/contexts and unfittable nowrap cells fail without modifying prior PDF bytes or stream position.
 
 A [24-row real report](../examples/report-cell-text-flow.html) and independent [paragraph-style control](../examples/report-cell-text-flow-oracle.html) are covered by [NUnit geometry, multipage, cascade and recovery tests](../tests/FactsPDF.Tests/TableCellTextFlowTests.cs). Engine source [19c6e35eb2987aa84fc7b5ff16b2ccad57630c60](https://github.com/KoalaFacts/FactsPDF/commit/19c6e35eb2987aa84fc7b5ff16b2ccad57630c60); exact CI, independent review, main verification and release are distinct. All three Can I Render records remain partial.
 
@@ -10,7 +10,7 @@ A [24-row real report](../examples/report-cell-text-flow.html) and independent [
 
 `text-indent` can now be declared on explicit fixed-track `td`/`th` cells and their flat `p` descendants. The cell's value is inherited by anonymous text and nested paragraphs. The winning nonnegative physical, `%`, `em` or `rem` length changes the measured first PDF line, wrapping, alignment and page continuations; later broken/wrapped lines do not re-indent and the cell background stays in place. Percentages use the **actual measured cell/paragraph content width**, not page width. Existing cascade, `!important` and `inherit/initial/unset` apply. This extends the existing partial `text-indent` behavior rather than creating a full CSS Text implementation.
 
-Only explicit-column table cells and their flat paragraphs are in scope; `table/col/colgroup/tr/thead/tbody`, lists and inline `span` do not gain text-indent. Negative/hanging, `calc()`, each-line/hanging flags, nested tables and impossible first-line geometry still fail with preserved previous PDF bytes and stream position.
+Only explicit-column table cells and their flat paragraphs are in scope; `table/col/colgroup/tr/thead/tbody`, lists and inline `span` do not gain text-indent. Negative/hanging, `calc()`, each-line/hanging flags and impossible first-line geometry still fail with preserved previous PDF bytes and stream position.
 
 The [multi-page service register](../examples/report-cell-text-indent.html) has an [independent computed-point control](../examples/report-cell-text-indent-oracle.html). Real PDF byte parity, glyph X positions, inherited/important styles, repeated headers and protected failures are exercised in [TableCellTextIndentTests](../tests/FactsPDF.Tests/TableCellTextIndentTests.cs). Source [7282c0839235443ab49935cb0f2e8092117786a1](https://github.com/KoalaFacts/FactsPDF/commit/7282c0839235443ab49935cb0f2e8092117786a1); exact-head CI, independent review and main merge remain separate gates.
 
@@ -200,7 +200,9 @@ breaks and in permitted flat table-cell text. This does not add CSS properties
 or element applicability. `text-align:justify/start/end` on an inline anchor
 is rejected rather than silently applied. The single supported destination
 contract is HTTPS (ASCII, no credentials) or plain single mailto, max 2048
-characters; unsupported URLs and extra anchor attributes fail explicitly, except
+characters; unsupported URLs and extra anchor attributes fail explicitly (an unsupported
+`href` only warns in non-strict mode: the text is drawn as a link with no annotation, see
+[feature notes](feature-notes.md#clickable-https-and-mailto-report-references-source-only)), except
 `target` and hyperlink `rel` types, which are validated and ignored
 (`AnchorTargetRelTests.cs`).
 

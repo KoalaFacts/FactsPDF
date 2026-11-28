@@ -99,6 +99,19 @@ internal sealed class PdfLinkAnnotations
         output.Append("> >> >>\nendobj\n");
     }
 
+    /// <summary>The link target of an <c>a href</c>: a valid absolute HTTPS or mailto URI, or in strict mode the
+    /// FPDF1103 failure. Non-strict mode (<paramref name="warnings"/> set) reports the same failure as a warning
+    /// and returns null: the text is then drawn as an ordinary link but no annotation is written.</summary>
+    internal static string? ValidateUri(string input, int offset, CssWarnings? warnings)
+    {
+        try { return ValidateUri(input, offset); }
+        catch (FactsPdfException error) when (warnings is not null)
+        {
+            warnings.Add(error);
+            return null;
+        }
+    }
+
     internal static string ValidateUri(string input, int offset)
     {
         if (input.Length is < 8 or > 2048 ||

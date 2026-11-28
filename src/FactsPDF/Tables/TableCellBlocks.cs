@@ -85,7 +85,7 @@ internal static class TableCellBlocks
         catch (FactsPdfException error) when (error.Code == "FPDF1303")
         {
             throw new FactsPdfException("FPDF1302",
-                "A table cell with a list is taller than the usable page height; such cells are not split across pages.",
+                "A table cell with a list or a nested table is taller than the usable page height; such cells are not split across pages.",
                 cell.SourceOffset);
         }
         return new(pages[0], usableHeight, Math.Max(0, end.RootBlockEnd));

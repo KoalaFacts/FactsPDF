@@ -697,7 +697,7 @@ internal static class TableLayout
     // modelled here; fail rather than paint an approximation.
     // A list's lines would break between page fragments cell by cell; only whole rows move.
     private static FactsPdfException UnsplitListRow(int offset) => Geometry(
-        "A table row with a list in a cell that must split across pages is not supported; only rows that fit a page move to the next page whole.", offset);
+        "A table row with a list or a nested table in a cell that must split across pages is not supported; only rows that fit a page move to the next page whole.", offset);
 
     private static FactsPdfException UnsplitCollapsedRow(int offset) => Geometry(
         "border-collapse:collapse is not implemented for a table row that must split across pages.", offset);
