@@ -88,8 +88,7 @@ const kindsOf = (difference: Difference): ExpectedKind[] =>
   difference.kinds ?? (difference.kind === null ? [] : [difference.kind]);
 
 export const expectedKinds = ['location-added', 'new-example-rendered', 'th-default-centred', 'orphans-widows-initial-2',
-  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'title-written'] as const;
-  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet'] as const;
+  'inline-replaced-baseline', 'list-default-margin', 'block-margin-collapse', 'ua-stylesheet', 'title-written'] as const;
 export type ExpectedKind = (typeof expectedKinds)[number];
 
 function expectedKind(value: string): ExpectedKind {
