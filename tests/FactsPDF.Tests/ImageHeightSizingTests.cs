@@ -128,7 +128,7 @@ public sealed class ImageHeightSizingTests
     [TestCase("<img src=chart style='height:env(x)'>", "FPDF1202")]
     [TestCase("<img src=chart style='height:-5pt'>", "FPDF1202")]
     [TestCase("<img src=chart style='height:999pt'>", "FPDF1302")]
-    [TestCase("<p style='height:20pt'>BAD</p>", "FPDF1201")]
+    [TestCase("<ul style='height:20pt'><li>BAD</li></ul>", "FPDF1201")]
     [TestCase("<table style='height:20pt'>", "FPDF1201")]
     public void UnsupportedOrUnplaceableHeightPreservesExistingOutput(string html, string code)
         => Reject(html, code);

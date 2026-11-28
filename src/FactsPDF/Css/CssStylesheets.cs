@@ -991,7 +991,8 @@ internal sealed class CssStylesheets
             {
                 var imageHeight = subject is "img" or "svg";
                 var panelHeight = declaration.Property != CssProperty.MaxHeight
-                    && subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
+                    && subject is ("p" or "pre" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+                        or "div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd")
                     && !AnyElement(path, e => e.Name is "ol" or "ul" or "menu" or "li" or "table" or "tr"
                         or "td" or "th" or "thead" or "tbody" or "tfoot");
                 if (!imageHeight && !panelHeight)

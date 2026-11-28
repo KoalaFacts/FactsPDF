@@ -40,12 +40,6 @@ public sealed class BodyCanvasBackgroundTests
     }
 
     [Test]
-    public void ABodyWithoutBackgroundIsUnchanged()
-    {
-        Assert.That(Pdf("<html><body style='margin:0'><p>A</p></body></html>"), Is.EqualTo(Pdf("<p style='margin:0'>A</p>")).Or.Not.Null);
-    }
-
-    [Test]
     public void AChildInheritingTheBodyBackgroundStillPaintsIt()
     {
         var inherited = Pdf("<html><body style='background:#cde'><p style='background:inherit'>A</p></body></html>");

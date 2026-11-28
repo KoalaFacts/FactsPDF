@@ -149,11 +149,31 @@ public sealed class ReportPanelFixedHeightTests
     [TestCase("<section style='height:-5pt'>A</section>", "FPDF1202")]
     [TestCase("<section style='height:env(x)'>A</section>", "FPDF1202")]
     [TestCase("<section style='height:30000pt'>A</section>", "FPDF1202")]
-    [TestCase("<p style='height:90pt'>A</p>", "FPDF1201")]
+    [TestCase("<ul><li><p style='height:90pt'>A</p></li></ul>", "FPDF1201")]
     [TestCase("<ul style='height:90pt'><li>A</li></ul>", "FPDF1201")]
     [TestCase("<style>.absent{height:30%}</style><section>A</section>", "FPDF1202")]
     public void UnsupportedInputPreservesTheExistingPdf(string html, string code)
         => Reject(html, code);
+
+    [TestCase("p")]
+    [TestCase("h2")]
+    [TestCase("pre")]
+    public void ParagraphsAndHeadingsTakeHeightAndMinHeightLikePanels(string tag)
+    {
+        var fixedBox = Layout($"<{tag} style='margin:0;font-weight:normal;height:60pt;background:#cde'>A</{tag}>")
+            .Single().PaintBoxes.Single(box => box.Style.BackgroundColor.HasValue);
+        Assert.That(fixedBox.Height, Is.EqualTo(60).Within(0.001));
+        var minimum = Layout($"<{tag} style='margin:0;font-weight:normal;min-height:60pt;background:#cde'>A</{tag}>")
+            .Single().PaintBoxes.Single(box => box.Style.BackgroundColor.HasValue);
+        Assert.That(minimum.Height, Is.EqualTo(60).Within(0.001));
+        var grown = Layout($"<{tag} style='margin:0;font-weight:normal;min-height:1pt;background:#cde'>A</{tag}>")
+            .Single().PaintBoxes.Single(box => box.Style.BackgroundColor.HasValue);
+        Assert.That(grown.Height, Is.GreaterThan(1), "min-height never shrinks the content box");
+    }
+
+    [Test]
+    public void ParagraphMaxHeightStillFailsExplicitly()
+        => Reject("<p style='max-height:20pt'>A</p>", "FPDF1201");
 
     [Test]
     public void ActualManagedCliAndDirectApiProduceIdenticalPDF()
