@@ -64,7 +64,7 @@ internal static class CssMediaQueries
             UsesPageArea = true;
             return area ??= pageArea();
         }
-        internal int Terms;
+        internal int Terms { get; set; }
     }
 
     /// <summary>Evaluates a media query list (an <c>@media</c> prelude, or a parsed <c>media</c> attribute).</summary>
