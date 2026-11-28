@@ -1155,10 +1155,6 @@ internal sealed class CssStylesheets
                         || cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
         }
-        // The weight the user-agent sheet gives a heading is soft: see TextStyle.SoftBold.
-        if (!userAgentTextStyle && styleOwned && style.Bold && HeadingKeep.IsHeading(subject)
-            && winners[(int)CssProperty.FontWeight] is { UserAgent: true })
-            style.SoftBold = true;
         if (userAgentTextOnly && !userAgentTextStyle && styleOwned && userAgentTextStyles.Count < MaxUserAgentTextStyles)
             userAgentTextStyles[userAgentTextKey] = style;
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)

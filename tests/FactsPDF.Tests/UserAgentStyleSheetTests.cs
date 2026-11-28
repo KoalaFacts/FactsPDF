@@ -56,16 +56,22 @@ public sealed class UserAgentStyleSheetTests
     }
 
     [Test]
-    public void HeadingsTakeChromesSizeAndFallBackToTheRegularFaceWithoutABoldChain()
+    public void HeadingsAndThAreBoldLikeBAndNeedTheSameBoldChain()
     {
-        var withoutBold = Layout("<h1>A</h1>").SelectMany(p => p.Runs).Single();
-        Assert.That(withoutBold.Style.FontSize, Is.EqualTo(24).Within(0.001));
-        Assert.That(withoutBold.Font, Is.SameAs(Regular));
         var withBold = Layout("<h1>A</h1>", Options(boldChain: true)).SelectMany(p => p.Runs).Single();
+        Assert.That(withBold.Style.FontSize, Is.EqualTo(24).Within(0.001));
         Assert.That(withBold.Font, Is.SameAs(Bold));
-        // Only the heading's own weight is soft: bold the author or b asks for still needs its chain.
-        foreach (var html in new[] { "<b>A</b>", "<h1 style='font-weight:bold'>A</h1>", "<h1>A <b>A</b></h1>" })
+        // FactsPDF never synthesizes bold: a heading, th, b and an authored bold fail alike without a bold chain,
+        // and font-weight:normal keeps the regular face.
+        foreach (var html in new[] { "<b>A</b>", "<h1>A</h1>", "<h6>A</h6>", "<table><tbody><tr><th>A</th></tr></tbody></table>",
+                     "<h1 style='font-weight:bold'>A</h1>" })
             Assert.That(Assert.Throws<FactsPdfException>(() => Layout(html))!.Code, Is.EqualTo("FPDF1507"), html);
+        var regular = Layout("<h1 style='font-weight:normal'>A</h1>").SelectMany(p => p.Runs).Single();
+        Assert.That(regular.Font, Is.SameAs(Regular));
+        // The built-in font has no bold either, so b and a heading behave the same there.
+        var builtIn = new PdfOptions { PageWidth = 300, PageHeight = 400, Margin = 0 };
+        foreach (var html in new[] { "<b>A</b>", "<h1>A</h1>" })
+            Assert.That(Assert.Throws<FactsPdfException>(() => Layout(html, builtIn))!.Code, Is.EqualTo("FPDF1507"), html);
     }
 
     [Test]

@@ -205,7 +205,7 @@ internal sealed class ListLayout
                     char.ToUpperInvariant(text[0]) + text[1..],
                 _ => text
             };
-            var role = FontRoles.Role(style, options);
+            var role = FontRoles.Role(style);
             var fonts = FontRoles.Chain(options, role, offset);
             var total = 0d;
             foreach (var scalar in paintedText)

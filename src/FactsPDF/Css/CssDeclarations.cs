@@ -226,7 +226,7 @@ internal static class CssDeclarations
         switch (property)
         {
             case CssProperty.FontSize: style.FontSize = source.FontSize; break;
-            case CssProperty.FontWeight: style.Bold = source.Bold; style.SoftBold = source.SoftBold; break;
+            case CssProperty.FontWeight: style.Bold = source.Bold; break;
             case CssProperty.FontStyle: style.Italic = source.Italic; break;
             case CssProperty.Color: style.Color = source.Color; break;
             case CssProperty.LineHeight: style.LineHeight = source.LineHeight; style.AbsoluteLineHeight = source.AbsoluteLineHeight; break;

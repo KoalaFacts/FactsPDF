@@ -104,12 +104,6 @@ internal sealed record TextStyle
     public bool BreakBefore { get; set; }
     public bool BreakAfter { get; set; }
     public bool Bold { get; set; }
-    /// <summary>
-    /// Whether <see cref="Bold"/> comes from the user-agent sheet's heading weight rather than from the
-    /// author, th, b or strong: FactsPDF never synthesizes bold, so without a bold font chain a heading
-    /// keeps its regular face instead of failing (see <see cref="FontRoles"/>).
-    /// </summary>
-    public bool SoftBold { get; set; }
     public bool Italic { get; set; }
     public bool KeepWithNext { get; set; }
     public TextDecoration Decoration { get; set; }

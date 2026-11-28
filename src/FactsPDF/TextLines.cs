@@ -551,7 +551,7 @@ internal static class TextLines
         // baselines on mixed Latin/CJK lines and inflates explicit line-height.
         private (double Ascent, double Descent) Metrics(TextStyle style, int sourceOffset)
         {
-            var fonts = FontRoles.Chain(options, FontRoles.Role(style, options), sourceOffset);
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
             var size = style.FontSize;
             if (style.AbsoluteLineHeight is null && style.HasNormalLineHeight && fonts.Count > 0)
                 return NormalMetrics(fonts[0], size);
@@ -673,7 +673,7 @@ internal static class TextLines
                 var top = align.Kind switch
                 {
                     InlineAlignKind.Shift => height + (align.IsPercent
-                        ? align.Shift / 100 * LineHeight(glyph.Style, FontRoles.Chain(options, FontRoles.Role(glyph.Style, options), glyph.SourceOffset))
+                        ? align.Shift / 100 * LineHeight(glyph.Style, FontRoles.Chain(options, FontRoles.Role(glyph.Style), glyph.SourceOffset))
                         : align.Shift),
                     InlineAlignKind.Middle => (height + XHeight(glyph.Style, glyph.SourceOffset)) / 2,
                     InlineAlignKind.TextTop => FontBox(glyph.Style, glyph.SourceOffset).Ascent,
@@ -709,7 +709,7 @@ internal static class TextLines
         // text box text-top and text-bottom align to.
         private (double Ascent, double Descent) FontBox(TextStyle style, int sourceOffset)
         {
-            var fonts = FontRoles.Chain(options, FontRoles.Role(style, options), sourceOffset);
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
             var size = style.FontSize;
             return fonts.Count == 0 ? (size * 0.8, size * 0.2)
                 : (size * fonts[0].Ascent1000 / 1000, size * -fonts[0].Descent1000 / 1000);
@@ -718,7 +718,7 @@ internal static class TextLines
         // The first available font's x-height (Courier's 426/1000 for the built-in font).
         private double XHeight(TextStyle style, int sourceOffset)
         {
-            var fonts = FontRoles.Chain(options, FontRoles.Role(style, options), sourceOffset);
+            var fonts = FontRoles.Chain(options, FontRoles.Role(style), sourceOffset);
             return style.FontSize * (fonts.Count == 0 ? 0.426 : fonts[0].XHeight1000 / 1000);
         }
     }
@@ -726,7 +726,7 @@ internal static class TextLines
     private static Glyph Resolve(int scalar, TextStyle style, int sourceOffset, PdfOptions options,
         Dictionary<(FontRole Role, int Scalar), (PdfFont? Font, double Width)> resolved)
     {
-        var role = FontRoles.Role(style, options);
+        var role = FontRoles.Role(style);
         if (!resolved.TryGetValue((role, scalar), out var value))
         {
             var fonts = FontRoles.Chain(options, role, sourceOffset);

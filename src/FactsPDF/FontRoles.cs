@@ -4,19 +4,13 @@ internal enum FontRole { Normal, Bold, Italic, BoldItalic }
 
 internal static class FontRoles
 {
-    // A heading's user-agent bold falls back to the regular face when the writer supplied no bold
-    // chain for it; every other bold needs its chain (FPDF1507, see Chain).
-    internal static FontRole Role(TextStyle style, PdfOptions options)
+    internal static FontRole Role(TextStyle style) => (style.Bold, style.Italic) switch
     {
-        var bold = style.Bold && !(style.SoftBold && (style.Italic ? options.BoldItalicFonts : options.BoldFonts).Count == 0);
-        return (bold, style.Italic) switch
-        {
-            (true, true) => FontRole.BoldItalic,
-            (true, false) => FontRole.Bold,
-            (false, true) => FontRole.Italic,
-            _ => FontRole.Normal
-        };
-    }
+        (true, true) => FontRole.BoldItalic,
+        (true, false) => FontRole.Bold,
+        (false, true) => FontRole.Italic,
+        _ => FontRole.Normal
+    };
 
     internal static string Name(FontRole role) => role switch
     {
