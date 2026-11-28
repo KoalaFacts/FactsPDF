@@ -25,7 +25,7 @@ public sealed class BdiElementTests
 
     [TestCase("<bdi><p>Block</p></bdi>", "FPDF1101")]
     [TestCase("<bdi dir='rtl'>A</bdi>", "FPDF1103")]
-    [TestCase("<bdo>A</bdo>", "FPDF1102")]
+    [TestCase("<marquee>A</marquee>", "FPDF1102")]
     public void UnsupportedUsesStillFail(string html, string code)
     {
         using var output = new MemoryStream();

@@ -156,7 +156,7 @@ internal sealed class CssStylesheets
         // A template's contents are inert (HTML: a document fragment that is never rendered), so
         // its tokens, style elements and style attributes are counted against the element limit
         // and then dropped before any pass sees them; the page renders as if it were absent.
-        var templates = 0; var templateOffset = -1; var insideTitle = false; var insideScript = false; var insideColgroup = false;
+        var templates = 0; var templateOffset = -1; var insideTitle = false; string? insideScript = null; var insideColgroup = false;
         // A style element whose type is not CSS is not a stylesheet: non-strict mode ignores its text.
         var ignoredStyle = false;
         var shape = new HtmlImpliedElements();
@@ -195,22 +195,26 @@ internal sealed class CssStylesheets
             // FactsPDF runs no scripts, and a script element is never rendered (display:none in the
             // HTML user-agent sheet), so it is counted against the element limit and dropped with
             // its attributes; the tokenizer has already skipped its data (R5cj).
-            if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value == "script")
+            // A noscript element is dropped the same way: with scripting enabled (as when a browser
+            // prints a page) its content is raw text and the user-agent sheet gives it
+            // display:none !important, so no author rule shows it.
+            if (item.Kind is HtmlTokenKind.Start or HtmlTokenKind.End && item.Value is "script" or "noscript")
             {
+                var raw = item.Value;
                 if (item.Kind == HtmlTokenKind.End)
                 {
-                    if (!insideScript) throw new FactsPdfException("FPDF1101", "Unexpected end tag 'script'.", item.Offset);
-                    insideScript = false;
+                    if (insideScript != raw) throw new FactsPdfException("FPDF1101", $"Unexpected end tag '{raw}'.", item.Offset);
+                    insideScript = null;
                     continue;
                 }
                 if (++elements > options.MaxElements) throw new FactsPdfException("FPDF1002", "Element limit exceeded.", item.Offset);
-                if (insideTitle) throw new FactsPdfException("FPDF1101", "script cannot be inside title.", item.Offset);
+                if (insideTitle) throw new FactsPdfException("FPDF1101", $"{raw} cannot be inside title.", item.Offset);
                 // In a colgroup, HTML closes the column group before a script, so the following col
                 // would start a new column group; dropping the script would shift the columns.
-                if (insideColgroup) throw new FactsPdfException("FPDF1101", "script cannot be inside colgroup.", item.Offset);
-                insideScript = true;
-                shape.Dropped(tokens, "script");
-                (sheet.dropped ??= []).Add((tokens.Count, "script", item));
+                if (insideColgroup) throw new FactsPdfException("FPDF1101", $"{raw} cannot be inside colgroup.", item.Offset);
+                insideScript = raw;
+                shape.Dropped(tokens, raw);
+                (sheet.dropped ??= []).Add((tokens.Count, raw, item));
                 continue;
             }
             var kept = shape.Add(tokens, item);
@@ -810,6 +814,43 @@ internal sealed class CssStylesheets
     internal bool HasPseudoRules { get; private set; }
 
     /// <summary>
+    /// The winning author <c>display</c> value of the element last on the path (rules and its style
+    /// attribute), or null when no declaration sets it. Read before the element is computed, by an
+    /// element whose kind of box depends on it: a custom element is inline unless CSS makes it a block.
+    /// </summary>
+    internal string? AuthorDisplay(IReadOnlyList<CssElement> path, InlineStyle inlineDeclarations)
+    {
+        Winner? display = null;
+        var element = path[^1];
+        void Scan(List<Rule> rules)
+        {
+            foreach (var rule in rules)
+            {
+                budget.Work(rule.Selector.Offset);
+                if (rule.Selector.PseudoElement != CssPseudoElement.None || !rule.Selector.Matches(path, budget, Positions)) continue;
+                foreach (var declaration in rule.Declarations)
+                {
+                    if (declaration.Property != CssProperty.Display) continue;
+                    var candidate = new Winner(declaration, false, rule.Selector.Specificity);
+                    if (display is not { } old || candidate.Beats(old)) display = candidate;
+                }
+            }
+        }
+        Scan(universal);
+        if (types.TryGetValue(element.Name, out var typeRules)) Scan(typeRules);
+        if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Scan(idRules);
+        foreach (var name in element.Classes.Names) if (classes.TryGetValue(name, out var classRules)) Scan(classRules);
+        if (inlineDeclarations.Declarations is { } inline)
+            foreach (var declaration in inline)
+            {
+                if (declaration.Property != CssProperty.Display) continue;
+                var candidate = new Winner(declaration, true, default);
+                if (display is not { } old || candidate.Beats(old)) display = candidate;
+            }
+        return display?.Declaration.Value;
+    }
+
+    /// <summary>
     /// The winning display and content values of an element's ::before or ::after, read before the
     /// pseudo-element is computed: they decide whether a box is generated and of which kind.
     /// </summary>
@@ -844,13 +885,17 @@ internal sealed class CssStylesheets
         double rootFontSize, BoxStyle parentBox, IReadOnlyList<CssElement> path,
         bool paragraph, bool block, int elementOffset, InlineStyle inlineDeclarations, bool allowStyling = true, bool hidden = false,
         ListMarkerKind? listTypeHint = null, CssPseudoElement pseudo = CssPseudoElement.None, string? pseudoName = null,
-        CssDeclaration? widthHint = null, CssDeclaration? heightHint = null)
+        string? uaName = null, CssDeclaration? widthHint = null, CssDeclaration? heightHint = null)
     {
         Array.Clear(winners); Array.Clear(userAgentWinners); if (extras is not null) Array.Clear(extras.Animation); var element = path[^1];
         if (budget.UsesRevertLayer) offered.Clear();
         // A pseudo-element is matched through its originating element but validated and computed
-        // as the box it generates: an inline span or a block div.
+        // as the box it generates: an inline span or a block div. An element that lays out like
+        // another (form, details and summary like a div, canvas and iframe like an svg) is
+        // validated as that element; uaName is the one that keeps its own user-agent defaults
+        // (a fieldset's border, a summary's marker, an iframe's inset border).
         var subject = pseudoName ?? element.Name;
+        var uaSubject = uaName ?? subject;
         customDeclarations.Clear(); pendingDeclarations.Clear();
         var cellParagraph = subject == "p" && AnyElement(path, e => e.Name is "td" or "th") && !InCellList(path);
         // Cell boxes inherit real first-line indent into anonymous text and flat paragraphs.
@@ -891,7 +936,7 @@ internal sealed class CssStylesheets
             // content generates boxes only for ::before and ::after; on an element it changes
             // nothing (as in a browser), so the validated value is dropped there.
             if (declaration.Property == CssProperty.Content && pseudo == CssPseudoElement.None) return;
-            if (TablePartDisplay(declaration) && element.Name is not ("img" or "svg")) return;
+            if (TablePartDisplay(declaration) && subject is not ("img" or "svg")) return;
             // baseline is the initial value. Outside cells inline text (and a br) already sits on
             // its baseline and blocks ignore vertical-align, so resets such as
             // *{vertical-align:baseline} are validated and dropped, even on void elements.
@@ -925,7 +970,7 @@ internal sealed class CssStylesheets
             // resource contracts; their display declarations fail explicitly.
             // An img or svg is an inline replaced box by default and a block box with display:block;
             // inline-block lays a replaced element out exactly like inline. display:none fails.
-            if (declaration.Property == CssProperty.Display && element.Name is "img" or "svg")
+            if (declaration.Property == CssProperty.Display && subject is "img" or "svg")
             {
                 if (declaration.Value is not ("block" or "inline" or "inline-block"))
                     throw new FactsPdfException("FPDF1201",
@@ -1011,10 +1056,10 @@ internal sealed class CssStylesheets
                         "break-inside is not supported inside table cells.", declaration.Offset);
             }
             if ((declaration.Property is CssProperty.ListStyleType or CssProperty.ListStylePosition) &&
-                subject is not ("ol" or "ul" or "menu" or "li"))
+                subject is not ("ol" or "ul" or "menu" or "li") && uaSubject != "summary")
                 throw new FactsPdfException("FPDF1201",
-                    "List marker properties are supported only on ol, ul and li.", declaration.Offset);
-            if (declaration.Property == CssProperty.VerticalAlign && element.Name is not ("img" or "svg"))
+                    "List marker properties are supported only on ol, ul, li and the first summary of a details.", declaration.Offset);
+            if (declaration.Property == CssProperty.VerticalAlign && subject is not ("img" or "svg"))
             {
                 if (subject is not ("td" or "th"))
                     throw new FactsPdfException("FPDF1201",
@@ -1349,7 +1394,8 @@ internal sealed class CssStylesheets
         // Other elements propagate the inherited marker type, including li and nested panels. Copy
         // the box only when a marker setting actually differs. The HTML type attribute is a
         // presentational hint: it replaces the user-agent default and loses to every author declaration.
-        var markerKind = listTypeHint ?? parentBox.MarkerKind;
+        // A details' first summary starts with the disclosure triangle (list-style: inside disclosure-closed).
+        var markerKind = listTypeHint ?? (uaSubject == "summary" ? ListMarkerKind.Disclosure : parentBox.MarkerKind);
         // All of this element's declarations are applied to one private copy, made on the first
         // change; shared boxes (Initial, the parent's) are never assigned (see BoxStyle).
         var owned = false;
@@ -1358,10 +1404,12 @@ internal sealed class CssStylesheets
             if (!owned) { box = box with { }; owned = true; }
             return box;
         }
-        if (box.MarkerKind != markerKind || box.MarkerInside != parentBox.MarkerInside)
+        // A summary's marker is inside (list-style: inside disclosure-closed).
+        var markerInside = uaSubject == "summary" || parentBox.MarkerInside;
+        if (box.MarkerKind != markerKind || box.MarkerInside != markerInside)
         {
             Own().MarkerKind = markerKind;
-            box.MarkerInside = parentBox.MarkerInside;
+            box.MarkerInside = markerInside;
         }
         // An element whose box declarations, parent box, element name, root font size and computed
         // font size and colour match an earlier element's computes the same box, so it shares that
@@ -1396,8 +1444,8 @@ internal sealed class CssStylesheets
                 if (!boxChecked)
                 {
                     boxChecked = true;
-                    boxKey = BoxKey(subject, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
-                    if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, subject,
+                    boxKey = BoxKey(uaSubject, subject, parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index);
+                    if (computedBoxes.TryGetValue(boxKey, out var computed) && SameBoxInputs(computed, uaSubject, subject,
                         parentBox, rootFontSize, style.FontSize, style.Color, listTypeHint, index))
                     {
                         box = computed.Box;
@@ -1406,7 +1454,7 @@ internal sealed class CssStylesheets
                     }
                 }
             }
-            if (declaration.Property == CssProperty.Display && element.Name is "img" or "svg")
+            if (declaration.Property == CssProperty.Display && subject is "img" or "svg")
                 Own().DisplayBlock = declaration.Value == "block";
             else if (declaration.Property == CssProperty.Display)
             {
@@ -1429,7 +1477,7 @@ internal sealed class CssStylesheets
                     "inside" => true,
                     _ => throw new InvalidOperationException("Unvalidated list marker position.")
                 };
-            else if (declaration.Property == CssProperty.VerticalAlign && element.Name is "img" or "svg")
+            else if (declaration.Property == CssProperty.VerticalAlign && subject is "img" or "svg")
                 Own().InlineAlign = declaration.Value is "inherit" ? parentBox.InlineAlign
                     : declaration.Value is "initial" or "unset" ? default
                     : InlineVerticalAlign.TryParse(declaration.Value, out var inlineAlign, style.FontSize, rootFontSize)
@@ -1548,6 +1596,29 @@ internal sealed class CssStylesheets
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
             computedBoxes[boxKey] = new ComputedBox(subject, parentBox, rootFontSize, style.FontSize, style.Color,
                 listTypeHint, BoxWrites(subject), winners[(int)CssProperty.VerticalAlign] is { UserAgent: true }, box);
+        // The fieldset's border is the sheet's 2px #f0f0f0 as a groove (two bands, the outer one darker,
+        // as Chrome paints ThreeDFace), and the iframe's is its inset: the sheet gives the two tones as
+        // border colours, which only fit black text and the sheet's own colours.
+        if (uaSubject == "fieldset")
+        {
+            BorderEdge Groove(BorderEdge edge, CssProperty style) => winners[(int)style] is { UserAgent: true } && edge.Pattern == BorderPattern.Solid
+                ? edge with { Pattern = BorderPattern.Groove } : edge;
+            box = box with
+            {
+                BorderTop = Groove(box.BorderTop, CssProperty.BorderTopStyle), BorderRight = Groove(box.BorderRight, CssProperty.BorderRightStyle),
+                BorderBottom = Groove(box.BorderBottom, CssProperty.BorderBottomStyle), BorderLeft = Groove(box.BorderLeft, CssProperty.BorderLeftStyle)
+            };
+            if (box.HasRoundedCorners && box.BorderTop.Pattern == BorderPattern.Groove)
+                throw new FactsPdfException("FPDF1201",
+                    "Rounded report boxes require an equally thick, single-colour solid border on all four sides.", elementOffset);
+        }
+        else if (uaSubject == "iframe-borderless" && winners[(int)CssProperty.BorderTopStyle] is { UserAgent: true })
+            box = box with { BorderTop = BorderEdge.Initial, BorderRight = BorderEdge.Initial, BorderBottom = BorderEdge.Initial, BorderLeft = BorderEdge.Initial };
+        else if (uaSubject == "iframe" && winners[(int)CssProperty.BorderTopStyle] is { UserAgent: true } && box.BorderTop.EffectiveWidth > 0
+            && (style.Color != new Rgb(0, 0, 0) || winners[(int)CssProperty.BorderTopColor] is { UserAgent: false }))
+            throw new FactsPdfException("FPDF1201",
+                "An iframe's default inset border is drawn only with black text and no border-color; set border-style or border:none to draw it another way.",
+                elementOffset);
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
@@ -1821,7 +1892,7 @@ internal sealed class CssStylesheets
         if ((host, value) is ("thead", "table-header-group") or ("tbody" or "tfoot", "table-row-group")
             or ("tr", "table-row") or ("td" or "th", "table-cell") or ("caption", "table-caption")
             // An img or svg is an inline replaced box already, and inline-block lays it out the same.
-            or ("img" or "svg", "inline" or "inline-block"))
+            or ("img" or "svg" or "canvas" or "video" or "iframe", "inline" or "inline-block"))
             return null;
         return (host, value) is ("tfoot", "table-footer-group")
             ? "tfoot rows render once after the body rows (table-row-group); a repeating table-footer-group is not supported."
@@ -1879,7 +1950,7 @@ internal sealed class CssStylesheets
                 or "ul" or "ol" or "menu" or "li" or "table" or "body")
             && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
 
-    private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color,
+    private int BoxKey(string element, string subject, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color,
         ListMarkerKind? listTypeHint, int first)
     {
         var hash = new HashCode();
@@ -1890,7 +1961,7 @@ internal sealed class CssStylesheets
         hash.Add(fontSize);
         hash.Add(color);
         for (var index = first; index < winners.Length; index++)
-            if (winners[index] is { } winner && WritesBox(element, winner.Declaration.Property))
+            if (winners[index] is { } winner && WritesBox(subject, winner.Declaration.Property))
             {
                 hash.Add(winner.Declaration.Property);
                 hash.Add(winner.Declaration.Value);
@@ -1899,7 +1970,7 @@ internal sealed class CssStylesheets
         return hash.ToHashCode();
     }
 
-    private bool SameBoxInputs(ComputedBox computed, string element, BoxStyle parentBox, double rootFontSize,
+    private bool SameBoxInputs(ComputedBox computed, string element, string subject, BoxStyle parentBox, double rootFontSize,
         double fontSize, Rgb color, ListMarkerKind? listTypeHint, int first)
     {
         if (!string.Equals(computed.Element, element, StringComparison.Ordinal) || !ReferenceEquals(computed.ParentBox, parentBox)
@@ -1909,7 +1980,7 @@ internal sealed class CssStylesheets
         var writes = computed.Writes; var count = 0;
         for (var index = first; index < winners.Length; index++)
         {
-            if (winners[index] is not { } winner || !WritesBox(element, winner.Declaration.Property)) continue;
+            if (winners[index] is not { } winner || !WritesBox(subject, winner.Declaration.Property)) continue;
             if (count == writes.Length || writes[count].Property != winner.Declaration.Property
                 || !string.Equals(writes[count].Value, winner.Declaration.Value, StringComparison.Ordinal)) return false;
             count++;

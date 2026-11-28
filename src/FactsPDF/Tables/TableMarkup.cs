@@ -44,9 +44,9 @@ internal sealed class TableMarkup(TableNode node)
             return;
         }
         var valid = Cell is not null
-            ? name is "p" or "img" or "svg"
+            ? name is "p" or "img" or "svg" or "canvas" or "video" or "iframe"
                 ? parent is "td" or "th"
-                : HtmlDocumentReader.InlineTag(name) || name == "br" || HtmlDocumentReader.ListTag(name) && parent is "td" or "th"
+                : HtmlDocumentReader.InlineTag(name) || name == "br" || HtmlDocumentReader.VoidInlineTag(name) || HtmlDocumentReader.ListTag(name) && parent is "td" or "th"
             : parent switch
             {
                 "table" => name == "caption" && phase == Phase.NeedColumns && Node.Caption is null && Node.Columns.Count == 0

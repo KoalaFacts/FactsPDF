@@ -155,7 +155,7 @@ public sealed class ConversionTests
         Assert.That(pdf, Is.EqualTo(Render("<p style='font-size:12pt'>A</p>").Pdf));
     }
 
-    [TestCase("<video>alert(1)</video>", "FPDF1102")]
+    [TestCase("<marquee>alert(1)</marquee>", "FPDF1102")]
     [TestCase("<img src='https://example.invalid/image.png'>", "FPDF1103")]
     [TestCase("<table><tbody><tr><td>A</td></tr><tbody><tr><td>B</td></tr></tbody></table>", "FPDF1101")]
     [TestCase("<math></math>", "FPDF1102")]
