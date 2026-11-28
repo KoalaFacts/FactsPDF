@@ -5,14 +5,11 @@ working in this repository.
 
 ## Licensing — do not change or restate
 
-- FactsPDF is licensed by **Koala Facts Trading Pty Ltd** under the standard
-  PolyForm licenses listed in `LICENSE.md`, with commercial licenses for other
-  use. `LICENSE.md` is the only source for which licenses apply; do not restate
-  the list elsewhere. The former "FactsPDF Community License" is retired; never
-  refer to it as current, and never describe engine changes as having to be
-  published.
-- Do not edit `LICENSE.md`, `LICENSING.md`, `COMMERCIAL.md` or
-  `docs/license-history.md` unless the owner asks for it in the task.
+- FactsPDF is licensed by **Koala Facts Trading Pty Ltd** under the Apache
+  License 2.0 (`LICENSE.md`), with paid commercial support offered separately
+  (`COMMERCIAL.md`). Do not describe engine changes as having to be published.
+- Do not change the licence, and do not edit `LICENSE.md`, `LICENSING.md` or
+  `COMMERCIAL.md`, unless the owner asks for it in the task.
 - Do not add licence, distribution, approval or legal disclaimers to feature
   notes, PR descriptions or docs. One line linking to `LICENSING.md` is enough
   where licensing is relevant.

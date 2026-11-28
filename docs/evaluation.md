@@ -499,10 +499,8 @@ environment before making a production commitment. The source declares
 `0.1.0-preview.1`. Five real source-bound software components are now
 privately retained by the owner after independent verification, but **none
 has been authorised for customer installation or distribution**. No public
-CLI/NuGet release exists. Evaluation rights come from the licenses in
-[LICENSE.md](../LICENSE.md), including a free trial of up to 90 consecutive
-days for any company; the commands below use a source checkout and grant no
-rights themselves.
+CLI/NuGet release exists. FactsPDF is free under the
+[Apache License 2.0](../LICENSE.md); the commands below use a source checkout.
 
 **Working with an existing reporting template?** [Open a template-fit request](https://github.com/KoalaFacts/FactsPDF/issues/new?template=report-template-fit.md). Share a redacted layout description, not customer documents or credentials. A public request starts a scope discussion only; see licensing below before building or running FactsPDF.
 
@@ -698,10 +696,8 @@ review; the example names are not evidence that a particular build was approved.
 
 ## Generate the first PDF
 
-First check the [licensing guide](../LICENSING.md) for your organization's
-rights. Any company may evaluate FactsPDF free for up to 90 consecutive
-calendar days under the Free Trial license; beyond that, organizations that do
-not qualify under Small Business or Noncommercial need a commercial license.
+FactsPDF is free for any use under Apache-2.0; see the
+[licensing guide](../LICENSING.md).
 
 From a source checkout with the repository's .NET 10 SDK:
 
@@ -768,26 +764,16 @@ For precise values and diagnostics, see [CSS](css-stylesheets.md),
 [tables](tables.md), [images](images.md), [page text](page-margins.md) and the
 [engineering support matrix](acceptance/support-matrix.md).
 
-## Discuss an evaluation or commercial arrangement
+## Discuss an evaluation or paid support
 
-FactsPDF is licensed under [PolyForm Small Business 1.0.0 or PolyForm
-Noncommercial 1.0.0](../LICENSE.md). Companies with fewer than 100 people and
-under USD 1,000,000 (2019, CPI-adjusted) revenue, counting affiliates, may use
-it free in proprietary commercial applications; noncommercial, charitable,
-educational and government use is also free.
+FactsPDF is licensed under the [Apache License 2.0](../LICENSE.md), free for any
+use including commercial applications. Application code, templates and
+generated PDFs do not become public by using FactsPDF.
 
-Any company may also evaluate FactsPDF for up to 90 consecutive calendar
-days under PolyForm Free Trial 1.0.0, with the extended trial period in
-LICENSE.md. Other uses, including production use by
-larger companies, require a separately agreed authorization from Koala Facts
-Trading Pty Ltd. Commercial arrangements
-can cover agreed application, hosted-service or redistribution needs.
-Application code, templates and generated PDFs do not become public by
-using FactsPDF.
-
-[Start a licensing enquiry](../COMMERCIAL.md#contact-and-safe-handling). Use the
-initial public issue only to request a private discussion; keep customer
-documents and business details in an agreed private channel.
+Optional paid [commercial support](../COMMERCIAL.md) from Koala Facts Trading
+Pty Ltd can cover template fitting and integration help. Use the initial public
+issue only to request a private discussion; keep customer documents and
+business details in an agreed private channel.
 
 A useful pilot proposal identifies:
 
@@ -795,13 +781,11 @@ A useful pilot proposal identifies:
 2. Up to three agreed, appropriately shared report templates.
 3. Required output, fonts, record counts, page behavior and failure handling.
 4. Specific deliverables and written acceptance criteria.
-5. Evaluation/use rights, duration, support scope, price and production-license
-   treatment in an accepted agreement.
+5. Support scope, duration and price in an accepted agreement.
 
 This is a proposed pilot structure, not a standard purchased entitlement.
-[Commercial details](../COMMERCIAL.md) and the existing
-[release requirements](licensing-review.md) continue to govern orders and
-software distribution.
+[Commercial support](../COMMERCIAL.md) and the existing
+[release requirements](licensing-review.md) apply.
 
 ## Delivery status
 
@@ -837,10 +821,8 @@ positively exercises **four distinct Chinese faces**. This does not
 constitute user approval of the changed reference pages.
 
 **No public NuGet/CLI/Release, hosted Pages site, customer software delivery
-or production-support commitment exists.** Evaluation is covered by the
-licenses in [LICENSE.md](../LICENSE.md), including the 90-day free trial. Private
-owner retention is not a legal grant. Human page review, legally valid
-distribution/evaluation rights, documented customer/seller terms, fixed-hardware
+or production-support commitment exists.** The software is licensed under
+[Apache-2.0](../LICENSE.md). Human page review, distribution approval, documented customer/seller terms, fixed-hardware
 performance budget and unclaimed source/toolchain signature checks remain
 separate gates. Track current decisions in
 [issue #51](https://github.com/KoalaFacts/FactsPDF/issues/51).

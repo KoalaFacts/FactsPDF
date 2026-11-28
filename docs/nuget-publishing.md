@@ -93,5 +93,5 @@ If push succeeds but readback times out, inspect NuGet before retrying; do not
 assume failure means no package was published, or overwrite/relabel the version.
 
 No GitHub Release/tag, commercial grant, price, legal identity, customer delivery
-or scheduled-task change is created by this workflow. The PolyForm and
-commercial licensing terms are unchanged by it.
+or scheduled-task change is created by this workflow. The Apache-2.0
+licence terms are unchanged by it.
