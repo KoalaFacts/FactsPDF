@@ -158,6 +158,35 @@ FactsPDF (white or transparent paints nothing). With `html{display:flex}` a
 the page like a flex item, where before it failed `FPDF1302`
 (`ImpliedTableBodyAndCanvasTests.cs`).
 
+### HTML tree construction
+
+Pages read with the tree the HTML parser builds (`HtmlTreeBuilderTests.cs`,
+`CharacterReferenceDecodeTests.cs`, `HtmlEncodingTests.cs`,
+[exact contract](css-stylesheets.md#html-tree-construction)):
+
+- Omitted end tags print as Chrome prints them: `<ul><li>A<li>B</ul>`,
+  `<dl><dt>T<dd>D</dl>`, `<p>A<div>B</div>`, `<p>A<hr>`, `<h1>A<h2>B</h2>`,
+  cells, rows and row groups closed by the next table part, implied `tbody`,
+  `tr` and `colgroup`, and every element still open at the end of the input.
+  Stray end tags (`</div>` with nothing to close, `</img>`) are ignored as the
+  parser ignores them. Where the parser would reopen a formatting element in the
+  next block (`<p><b>A<div>`) or move content in front of a table, the page
+  still fails `FPDF1101`.
+- All 2,231 named character references, legacy names without a semicolon,
+  numeric references with the tokenizer's replacements and the attribute-value
+  rule; an unknown name such as `&bogus;` prints as written instead of failing
+  `FPDF1104` (that code is retired).
+- `meta charset` and `http-equiv=content-type` accept every label of UTF-8,
+  UTF-16 and windows-1252 (`latin1`, `iso-8859-1`, `ascii`); the CLI sniffs a
+  byte order mark and the meta prescan and decodes those encodings. Other
+  encodings fail `FPDF1103`.
+- `title`, `meta`, `link` and `base` are accepted in body (hidden, as in Chrome);
+  `role`, `aria-*`, `tabindex`, `inert`, microdata and the other global
+  attributes that print nothing are accepted everywhere and selectable.
+- `lang` drives `:lang(fr)`; a `q` in a language other than English fails
+  `FPDF1103` instead of printing English quotation marks. Declarative shadow
+  DOM (`template shadowrootmode`) still fails `FPDF1103`.
+
 ### Custom properties and var()
 
 Design-token stylesheets declare colours, font sizes and spacing once as custom properties (`:root{--brand-700:#b3261e;--brand:var(--brand-700);--space-6:12pt}`) and use them everywhere with `var()`: `font-size:var(--font-3) !important`, `padding:var(--space-3) var(--space-6)`, `border-top:2px solid var(--brand)`, `style="padding: 0 var(--space-6)"`. Custom properties cascade, inherit and accept `inherit`/`initial`/`unset`; `var()` works in every supported property, shorthands included, with fallbacks and nested references, and the page renders byte-identical to the same page with the values written out ([example](../examples/report-custom-properties.html) with 71 tokens and its [literal oracle](../examples/report-custom-properties-oracle.html)). Where a browser would quietly unset a declaration (a reference with no value and no fallback, a used reference cycle, a value the property does not accept after substitution) FactsPDF fails with `FPDF1202` at that declaration; doubling or deep reference chains fail with `FPDF1205` ([custom properties](css-stylesheets.md#custom-properties-and-var), `CustomPropertyTests.cs`).
@@ -591,7 +620,7 @@ Email and document builders put it on `html`, `body`, tables and paragraphs. `di
 fragment that never renders: the PDF is byte-identical to the page without the element, in the
 head, in containers, lists and tables, and nested. Style elements and style attributes inside it
 are not compiled, and elements FactsPDF does not otherwise support may appear there. The contents
-must still tokenize: an invalid character reference in an attribute fails as it would elsewhere. The end tag is required (`FPDF1101`), a template inside `title`
+must still tokenize. The end tag is required (`FPDF1101`), a template inside `title`
 fails `FPDF1101`, the contents still count toward `MaxElements` (`FPDF1002`), and a
 declarative shadow root (`shadowrootmode`), which browsers do render, fails `FPDF1103`
 (`TemplateElementTests.cs`).

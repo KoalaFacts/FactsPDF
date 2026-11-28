@@ -32,8 +32,10 @@ HTML attributes are decoded before matching. `~=` uses ASCII whitespace only;
 `|=` is useful for `lang` such as `en` or `en-AU`. Empty non-equality
 operands deliberately reject. Empty equality strings are valid.
 
-Supported attribute names are `id`, `class`, `title`, `lang`, `href`,
-`src`, `alt`, `hidden` and nonempty `data-*` names. Attribute names are
+Supported attribute names are `href`, `src`, `alt`, `hidden`, nonempty
+`data-*` names and the other global attributes that print nothing (`id`,
+`class`, `title`, `lang`, `role`, `aria-*`, `tabindex`, ...; see
+[HTML tree construction](#html-tree-construction)). Attribute names are
 ASCII-insensitive; attribute values with the `i` flag fold **ASCII letters
 only**, not arbitrary Unicode. All operators compose with supported type,
 class, ID, comma, descendant and direct-child selectors and contribute
@@ -1612,7 +1614,7 @@ Style elements and style attributes inside a `<template>` are inert and never co
 
 No `link` stylesheet fetching, external files, `@import` or at-rules other than `@media print`/`all`, `@page` (see [CSS `@page`](#css-page-paper-margins-and-margin-boxes)) and `@keyframes` (validated and dropped) are implemented. `media="print"` on a style element is not the same as supporting a CSS `@media` rule. `@layer` is supported ([cascade layers](#cascade-layers)), as are the sibling combinators ([below](#sibling-combinators)) and [nesting](#css-nesting). Pseudo-classes other than `:root`, the structural ones and `:not()`, pseudo-elements other than `::before`/`::after` ([generated content](#current-source-before-and-after-generated-content)), escapes and other selector functions remain unsupported. Custom properties and `var()` are supported as described in [custom properties](#custom-properties-and-var).
 
-`:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` tag has the implied `html` element as its root, so `:root` matches it there too, exactly like `html{}` (see [implied html, head and body](#implied-html-head-and-body)). `:root` composes with the structural pseudo-classes and `:not()` (`:root:first-child`, `:not(:root)`); other pseudo-classes and pseudo-elements (`:hover`, `::before`) still fail with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
+`:root` matches the document's root element, which in HTML is the `html` element: it renders exactly like the same rule written on `html`, except that it has pseudo-class specificity (0,1,0), so `:root{color:navy}` beats a later `html{color:maroon}` (0,0,1) and ties with a class on `html`, where source order decides. The pseudo-class name is ASCII case-insensitive and composes with type, class, ID, attribute, descendant and child selectors (`:root .note`, `html:root`). A page without an `html` tag has the implied `html` element as its root, so `:root` matches it there too, exactly like `html{}` (see [implied html, head and body](#implied-html-head-and-body)). `:root` composes with the structural pseudo-classes and `:not()` (`:root:first-child`, `:not(:root)`); `:lang()` with a primary language subtag matches as described under [HTML tree construction](#html-tree-construction); other pseudo-classes and pseudo-elements (`:hover`, `::before`) still fail with `FPDF1203` (`RootPseudoClassTests.cs`). Style blocks within a paragraph/span/title are rejected rather than silently reparented.
 
 ### Structural pseudo-classes and :not()
 
@@ -1698,6 +1700,89 @@ the existing element, it fails `FPDF1101`.
 A `tr` directly in a `table` (or after its `colgroup`, `caption` or `thead`) is put in a `tbody` the parser implies (the HTML "in table" insertion mode), closed by the next `thead`, `tbody` or `tfoot` or the table's end tag; it takes part in selectors like an explicit `tbody`.
 
 `background-color` on `html` is the page canvas: as Chrome prints it, it covers each whole sheet, margins included, under every other paint. Opaque white and transparent paint nothing; other box properties on `html` still fail `FPDF1201`. With `html{display:flex}` the `body` is a flex item, so a `body` wider than the page content box shrinks to it (`flex-shrink` 1, never below its min-content width) and lays out like an auto-width body; a `body` that cannot shrink (`flex-shrink:0`, a `min-width`, or min-content wider than the page) fails `FPDF1201`.
+
+### HTML tree construction
+
+The token list carries the element tree the HTML parser builds (HTML Standard
+13.2.6, the insertion modes from "initial" to "in cell"), so selectors, the
+cascade and layout read the same tree as Chrome (`HtmlTreeBuilderTests.cs`):
+
+- **Omitted end tags** are written out where the parser implies them: a `p` is
+  closed by the start of a block (`address`, `article`, `aside`, `blockquote`,
+  `details`, `dialog`, `div`, `dl`, `fieldset`, `figcaption`, `figure`,
+  `footer`, `form`, `header`, `hgroup`, `main`, `menu`, `nav`, `ol`, `p`,
+  `pre`, `search`, `section`, `summary`, `ul`, `h1`-`h6`, `li`, `dd`, `dt`),
+  an `hr` or a `table`, and by the end tag of a block, list item or cell; an
+  `li` by the next `li` (also past a `div` or `p` inside it), a `dt` or `dd` by
+  the next `dt` or `dd`, a heading by the next heading and `</h1>`-`</h6>` close
+  whichever heading is open; a cell, row, row group, `caption` or `colgroup` is
+  closed by the next table part or the table's end. A `tbody` is implied
+  before a `tr` or cell directly in a `table`, a `tr` before a cell directly in
+  a row group and a `colgroup` before a `col` directly in a `table`; implied
+  elements match selectors like written ones and count against no limit.
+- **Stray end tags** with no open element of their name in scope are ignored,
+  as the parser ignores them (`</div>` with no open `div`, `</img>`,
+  `</base>`). `</p>` without an open `p` (the parser inserts an empty
+  paragraph) and `</br>` (read as a `br`) still fail `FPDF1101`.
+- **End of input** closes every open element, so `<div><p>A` prints like
+  `<div><p>A</p></div>`.
+- **Not reproduced:** the parser closes a formatting element (`a`, `b`, `big`,
+  `code`, `em`, `font`, `i`, `nobr`, `s`, `small`, `strike`, `strong`, `tt`,
+  `u`) implicitly only to reopen it in the next block (the list of active
+  formatting elements and the adoption agency algorithm), and moves misplaced
+  table content in front of the table (foster parenting). An omitted end tag is
+  written out only when no formatting element is closed by it; otherwise the
+  tags stay as written and fail `FPDF1101` (`<p><b>A<div>B</div>`,
+  `<ul><li><b>A<li>B</ul>`, text or a `p` directly in a table row group). The
+  document is read in no-quirks mode: a `table` closes an open `p` with or
+  without a doctype.
+- **Metadata in body:** `title`, `meta`, `link` and `base` are accepted in body,
+  lists and table cells, where the parser inserts them as written and the
+  user-agent sheet hides them; they print nothing and still count as siblings
+  for structural pseudo-classes. An author `display` that shows one fails
+  `FPDF1201`; one directly in table structure (which the parser would move in
+  front of the table) fails `FPDF1101`.
+
+**Character references** decode exactly as the HTML tokenizer decodes them: all
+2,231 named references of the HTML Standard (`&euro;`, `&hellip;`,
+`&NotEqualTilde;`), the 106 legacy names also without a semicolon (`&amp`,
+`&copy2026`, the longest name winning: `&notit;` is `¬it;`), decimal and
+hexadecimal references with or without a semicolon, `&#0;`, surrogates and
+values past U+10FFFF as U+FFFD and 0x80-0x9F as the windows-1252 characters.
+In an attribute value a legacy name without its semicolon followed by `=` or
+an ASCII alphanumeric is kept as written (`?a=1&copy=2`). Anything that is not
+a reference (an unknown name such as `&bogus;`, `&#` without digits) is text,
+as in Chrome; whether a decoded character prints still depends on the fonts.
+
+**Encodings:** a .NET string is already decoded, so `<meta charset>` and
+`<meta http-equiv="content-type" content="...; charset=...">` are accepted when
+they name an encoding FactsPDF decodes: UTF-8, UTF-16 (LE, BE) or windows-1252
+under any of its Encoding Standard labels (`latin1`, `iso-8859-1`, `ascii`,
+`us-ascii`, `cp1252`, ...). Any other label fails `FPDF1103`, and so do other
+pragmas (`refresh`, `content-language`, `default-style`, ...); `X-UA-Compatible`
+is accepted. The CLI reads bytes and sniffs them as Chrome does: a UTF-8 or
+UTF-16 byte order mark, then a meta declaration found by the HTML prescan (every
+tag of the first 1024 bytes, then on while the document is still in head), then
+UTF-8. Malformed UTF-8 or UTF-16 fails instead of printing replacement
+characters.
+
+**Global attributes** that print nothing are accepted on every element and can
+be selected with attribute selectors: `id`, `class`, `title`, `lang`, `data-*`,
+event handlers (`on*`), `role`, `aria-*`, `tabindex`, `accesskey`, `inert`,
+`autocapitalize`, `autocorrect`, `enterkeyhint`, `inputmode`, `spellcheck`,
+`writingsuggestions`, `draggable`, `translate`, the microdata attributes
+(`itemscope`, `itemprop`, `itemtype`, `itemid`, `itemref`), `slot`, `part`,
+`exportparts` and `nonce`, and `xmlns` on `html` with the HTML namespace.
+`contenteditable` (it changes line breaking), `popover` (hidden until shown)
+and `autofocus` (a focus ring) still fail `FPDF1103`.
+
+**Language:** `lang` (the element's own or the nearest ancestor's) drives
+`:lang()` with one primary language subtag (`:lang(fr)` matches `lang=fr` and
+`lang=fr-CA`, not `lang=fry`, ASCII case-insensitively; an empty `lang` is no
+language); a range with subtags, a wildcard or a list fails `FPDF1203`. A `q`
+prints English quotation marks, so a `q` whose language is set and not English
+fails `FPDF1103`, where Chrome would print that language's marks. `lang` is not
+written to the PDF and does not select fonts or hyphenation.
 
 ## Custom properties and var()
 
