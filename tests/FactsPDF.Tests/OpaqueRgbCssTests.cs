@@ -205,6 +205,8 @@ public sealed class OpaqueRgbCssTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
             directory = directory.Parent;
         Assert.That(directory, Is.Not.Null);
-        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
+        // The report's h1 only carries the shared colour cascade, so it is pinned to the regular weight.
+        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name))
+            .Replace("</head>", "<style>h1{font-weight:normal}</style></head>", StringComparison.Ordinal);
     }
 }

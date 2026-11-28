@@ -21,7 +21,7 @@ public sealed class TextSizeAdjustTests
     }
 
     private static string Report(string declarations) =>
-        $"<style>html{{line-height:1.15;{declarations}}} body{{{declarations}}} h2{{color:#234;{declarations}}} .box{{width:200pt;background:#eef;{declarations}}}</style>" +
+        $"<style>html{{line-height:1.15;{declarations}}} body{{{declarations}}} h2{{font-weight:normal;color:#234;{declarations}}} .box{{width:200pt;background:#eef;{declarations}}}</style>" +
         "<h2>Invoice</h2>" +
         $"<div class='box'><p style='{declarations}'>Paid in full</p></div>" +
         $"<table style='width:200pt'><colgroup><col style='width:200pt'></colgroup><tbody><tr><td style='{declarations}'>Total</td></tr></tbody></table>";

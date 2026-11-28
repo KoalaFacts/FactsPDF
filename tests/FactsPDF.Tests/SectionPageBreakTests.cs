@@ -13,15 +13,18 @@ public sealed class SectionPageBreakTests
         PageWidth = 300, PageHeight = 220, Margin = 20
     };
 
+    // Page coordinates below are measured from the page margin, so the 8px user-agent body margin is reset.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static byte[] Render(string html)
     {
         using var stream = new MemoryStream();
-        PdfConverter.Convert(html, stream, Page);
+        PdfConverter.Convert(NoBodyMargin + html, stream, Page);
         return stream.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, Page, default), Page, default);
 
     private static void RejectAndRecover(string html, string expected)
     {
@@ -52,7 +55,8 @@ public sealed class SectionPageBreakTests
         Assert.That(pages[1].Runs.Select(r => r.Text), Is.EqualTo(new[] { "PANEL", "AFTER" }));
         Assert.That(pages[1].PaintBoxes, Has.Count.EqualTo(1));
         Assert.That(pages[1].PaintBoxes[0].Top,
-            Is.EqualTo(tag == "blockquote" ? 28 : 20).Within(0.00001));
+            // The blockquote keeps its 1em (12pt) user-agent top margin at the top of the new page.
+            Is.EqualTo(tag == "blockquote" ? 32 : 20).Within(0.00001));
         Assert.That(Encoding.ASCII.GetString(Render(html)), Does.Contain("/Count 2"));
     }
 
@@ -110,8 +114,10 @@ public sealed class SectionPageBreakTests
             "<p style='margin:0'>SECOND</p></section>" +
             "<article style='break-before:inherit'><p style='margin:0'>THIRD</p></article>";
         var doc = HtmlDocumentReader.ReadTree(html, Page, default);
-        var section = doc.Children.OfType<BlockNode>().Single(n => n.Name == "section");
-        var article = doc.Children.OfType<BlockNode>().Single(n => n.Name == "article");
+        // The implied body is the root's only child.
+        var body = doc.Children.OfType<BlockNode>().Single(n => n.Name == "body");
+        var section = body.Children.OfType<BlockNode>().Single(n => n.Name == "section");
+        var article = body.Children.OfType<BlockNode>().Single(n => n.Name == "article");
         Assert.That(section.BoxStyle.BreakBefore, Is.True);
         Assert.That(section.BoxStyle.BreakAfter, Is.True);
         Assert.That(article.BoxStyle.BreakBefore, Is.False);

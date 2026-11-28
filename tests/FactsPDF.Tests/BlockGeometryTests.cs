@@ -9,17 +9,32 @@ namespace FactsPDF.Tests;
 public sealed class BlockGeometryTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
+
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var settings = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, settings, default), settings, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), settings, default), settings, default);
     }
     private static BlockNode Box(BlockChild child) => (BlockNode)child;
     private static FactsPdfException Fails(string html, string code, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
         output.Write("keep"u8);
-        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, options ?? Page));
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), output, options ?? Page));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(Encoding.ASCII.GetString(output.ToArray()), Is.EqualTo("keep"));
         return error;
@@ -29,7 +44,7 @@ public sealed class BlockGeometryTests
     public void WidthAndFourSidedPaddingRetainTheirOwnBoxStyleAndMoveText()
     {
         const string html = "<div style='width:200pt;padding:10pt 20pt 30pt 15pt'><p>A</p></div><p>B</p>";
-        var root = HtmlDocumentReader.ReadTree(html, Page, default);
+        var root = HtmlDocumentReader.ReadTree(Neutral(html), Page, default);
         var div = Box(root.Children[0]);
         Assert.That(div.BoxStyle.Width!.Value.Value, Is.EqualTo(200));
         Assert.That(div.BoxStyle.PaddingTop.Value, Is.EqualTo(10));
@@ -85,7 +100,7 @@ public sealed class BlockGeometryTests
     {
         const string html = "<style>.card{padding:2pt 8pt;padding-left:12pt}.card{padding-top:6pt !important}</style>" +
             "<div class=card style='padding:3pt 4pt 5pt 6pt;padding-right:7pt !important'>X</div>";
-        var box = Box(HtmlDocumentReader.ReadTree(html, Page, default).Children.Single());
+        var box = Box(HtmlDocumentReader.ReadTree(Neutral(html), Page, default).Children.Single());
         Assert.That(box.BoxStyle.PaddingTop.Value, Is.EqualTo(6));
         Assert.That(box.BoxStyle.PaddingRight.Value, Is.EqualTo(7));
         Assert.That(box.BoxStyle.PaddingBottom.Value, Is.EqualTo(5));
@@ -106,7 +121,7 @@ public sealed class BlockGeometryTests
     public void ExplicitOrAutoWidthCannotExceedParentContentRectangle()
     {
         var tooWide = Fails("<div style='width:100%;padding-left:1pt'>A</div>", "FPDF1302");
-        Assert.That(tooWide.SourceOffset, Is.EqualTo(0));
+        Assert.That(tooWide.SourceOffset, Is.EqualTo(Reset.Length));
         Fails("<div style='padding-left:150pt;padding-right:150pt'>A</div>", "FPDF1302");
         Fails("<div style='width:0'>A</div>", "FPDF1302");
     }
@@ -127,7 +142,7 @@ public sealed class BlockGeometryTests
         Fails("<html style='padding:1pt'><body><p>A</p></body></html>", "FPDF1201");
         Fails("<style>span{padding:1pt}</style><span>A</span>", "FPDF1201");
         var painted = Box(HtmlDocumentReader.ReadTree(
-            "<div style='border:1pt solid red'>A</div>", Page, default).Children.Single());
+            Reset + "<div style='border:1pt solid red'>A</div>", Page, default).Children.Single());
         Assert.That(painted.BoxStyle.BorderTop.EffectiveWidth, Is.EqualTo(1),
             "M7 explicitly enables border on block elements.");
     }
@@ -205,7 +220,7 @@ public sealed class BlockGeometryTests
     {
         const string html = "<section style='width:200pt;padding:10pt'><p>AB</p></section>";
         using var output = new MemoryStream();
-        var result = PdfConverter.Convert(html, output, Page);
+        var result = PdfConverter.Convert(Neutral(html), output, Page);
         var pdf = Encoding.ASCII.GetString(output.ToArray());
         Assert.That(result.PageCount, Is.EqualTo(1));
         Assert.That(pdf, Does.Contain("1 0 0 1 30 "));
@@ -309,7 +324,7 @@ public sealed class BlockGeometryTests
     public void CancelledTreeLayoutAndMaxPagesRetainExistingGuardrails()
     {
         const string html = "<div style='width:180pt;padding:10pt'><p>A</p><p style='break-before:page'>B</p></div>";
-        var tree = HtmlDocumentReader.ReadTree(html, Page, default);
+        var tree = HtmlDocumentReader.ReadTree(Neutral(html), Page, default);
         Assert.Throws<OperationCanceledException>(() => TextLayout.Layout(tree, Page, new CancellationToken(true)));
         var error = Assert.Throws<FactsPdfException>(() => TextLayout.Layout(tree, Page with { MaxPages = 1 }, default));
         Assert.That(error!.Code, Is.EqualTo("FPDF1303"));

@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
 // Independently authored expected text; do not derive expectations by parsing generated PDFs.
-const css = '<style>body{font-size:12pt;line-height:1.5}div{width:190pt;padding:8pt;border:1pt solid #475569}p{margin-bottom:8pt}.next{break-before:page}</style>';
+const css = '<style>body{margin:0;font-size:12pt;line-height:1.5}div{width:190pt;padding:8pt;border:1pt solid #475569}p{margin:0 0 8pt}.next{break-before:page}</style>';
 const report = [
   ['样式核验 / Font styles', '样式核验 / Font styles'],
   ['北京团队 / Beijing team', '北京团队 / Beijing team'],

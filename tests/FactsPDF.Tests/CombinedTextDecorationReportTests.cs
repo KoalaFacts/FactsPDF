@@ -139,7 +139,9 @@ public sealed class CombinedTextDecorationReportTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "FactsPDF.slnx")))
             directory = directory.Parent;
         Assert.That(directory, Is.Not.Null);
-        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name));
+        // The report's headings only carry the decoration cascade, so they are pinned to the regular weight.
+        return File.ReadAllText(Path.Combine(directory!.FullName, "examples", name))
+            .Replace("</head>", "<style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style></head>", StringComparison.Ordinal);
     }
 
     [Test]

@@ -35,9 +35,10 @@ public sealed class RootRelativeBoxLengthTests
     [Test]
     public void HtmlRootNotBodySizeControlsBlockWidthAndAllFourPaddingEdges()
     {
-        const string relative = "<html style='font-size:15pt'><body style='font-size:9pt'>" +
+        // margin:0 on body keeps the page-margin coordinates below free of the 8px UA body margin.
+        const string relative = "<html style='font-size:15pt'><body style='font-size:9pt;margin:0'>" +
             "<section style='width:8rem;padding:0.5rem;border:1pt solid blue;background:#f0f6fa'>AB WA</section></body></html>";
-        const string absolute = "<html style='font-size:15pt'><body style='font-size:9pt'>" +
+        const string absolute = "<html style='font-size:15pt'><body style='font-size:9pt;margin:0'>" +
             "<section style='width:120pt;padding:7.5pt;border:1pt solid blue;background:#f0f6fa'>AB WA</section></body></html>";
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(absolute)));
         var page = Layout(relative).Single();

@@ -19,8 +19,11 @@ public sealed class NonStrictCssTests
 {
     private static readonly PdfWriter Writer = Pdf.Write().WithPage(p => p.Size(300, 400).Margin(20));
 
+    // The user-agent stylesheet makes headings bold, which needs a bold font chain; these tests are not about bold.
+    private const string Pin = "h1,h2,h3,h4,h5,h6,th{font-weight:normal}";
+
     private static string Document(string css, string body = "<h1>Invoice</h1><div class='panel'><p class='lead'>Paid in full</p></div><p>Thanks</p>") =>
-        $"<!doctype html><html><head><style>{css}</style></head><body>{body}</body></html>";
+        $"<!doctype html><html><head><style>{Pin}{css}</style></head><body>{body}</body></html>";
 
     private static (byte[] Pdf, PdfWarnings Warnings) NonStrict(string html, PdfWriter? writer = null)
     {
@@ -168,11 +171,11 @@ public sealed class NonStrictCssTests
     [TestCase("text/x-template")]
     public void ANonCssStyleElementIsIgnored(string type)
     {
-        var html = $"<!doctype html><html><head><style type='{type}' media='screen' data-x>p{{colr:red;color:navy}}</style><style>h1{{color:navy}}</style></head><body><h1>T</h1><p>x</p></body></html>";
+        var html = $"<!doctype html><html><head><style type='{type}' media='screen' data-x>p{{colr:red;color:navy}}</style><style>{Pin}h1{{color:navy}}</style></head><body><h1>T</h1><p>x</p></body></html>";
         var strict = Strict(html);
         Assert.That(strict.Code, Is.EqualTo("FPDF1204"));
         var (pdf, warnings) = NonStrict(html);
-        Assert.That(pdf, Is.EqualTo(Writer.ToBytes("<!doctype html><html><head><style>h1{color:navy}</style></head><body><h1>T</h1><p>x</p></body></html>")));
+        Assert.That(pdf, Is.EqualTo(Writer.ToBytes($"<!doctype html><html><head><style>{Pin}h1{{color:navy}}</style></head><body><h1>T</h1><p>x</p></body></html>")));
         Assert.That(warnings.Items, Has.Count.EqualTo(1));
         AssertWarningIsTheStrictError(warnings.Items[0], strict);
     }
@@ -329,7 +332,7 @@ public sealed class NonStrictCssTests
     [TestCase("--strict", "FALSE")]
     public void CliNonStrictPrintsEachWarningAndExitsZero(params string[] option)
     {
-        var html = "<!doctype html><html><head><style>\np{colr:red}\nh1{color:bogus}\n</style></head><body><h1>T</h1><p>x</p></body></html>";
+        var html = "<!doctype html><html><head><style>\np{colr:red}\nh1{color:bogus}\n</style></head><body><h1 style='font-weight:normal'>T</h1><p>x</p></body></html>";
         var (exit, lines, output) = Cli(html, option);
         Assert.That(exit, Is.Zero);
         Assert.That(lines, Is.EqualTo(new[]

@@ -26,7 +26,7 @@ public sealed class WordWrapAliasTests
     public void WordWrapRendersLikeOverflowWrap(string value)
     {
         string Page(string property) =>
-            $"<style>h2{{width:120pt;{property}:{value}}}</style><h2>Due now</h2>" +
+            $"<style>h2{{width:120pt;{property}:{value}}}</style><h2 style='font-weight:normal'>Due now</h2>" +
             $"<div style='width:120pt;{property}:break-word'><p style='{property}:{value}'>Paid in full</p></div>" +
             "<table style='width:60pt'><colgroup><col style='width:60pt'></colgroup>" +
             $"<tbody><tr><td style='{property}:break-word'>{Code}</td></tr></tbody></table>";

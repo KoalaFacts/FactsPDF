@@ -15,7 +15,7 @@ internal sealed class CssStylesheets
     private sealed record Rule(CssSelector Selector, CssDeclaration[] Declarations, Layer? Layer = null);
     // Layer: where the declaration's cascade layer sorts (see LayerOrder), compared after importance and
     // the style attribute and before specificity, as the cascade orders them.
-    private readonly record struct Winner(CssDeclaration Declaration, bool Inline, CssSpecificity Specificity, int Layer)
+    private readonly record struct Winner(CssDeclaration Declaration, bool Inline, CssSpecificity Specificity, int Layer = 0, bool UserAgent = false)
     {
         internal bool Beats(Winner other)
         {
@@ -40,6 +40,25 @@ internal sealed class CssStylesheets
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
     private readonly Winner?[] winners = new Winner?[(int)CssProperty.AnimationTimingFunction + 1];
+    // The user-agent declarations that won for the element being computed (see UserAgentStyleSheet),
+    // merged into winners for every property no author declaration (or a revert) decided.
+    private readonly Winner?[] userAgentWinners = new Winner?[UserAgentStyleSheet.Properties.Length];
+    // Matching the user-agent rules is no author work: it never charges the conversion's CSS budgets.
+    private readonly CssBudget userAgentBudget;
+    // Text styles computed from nothing but user-agent declarations on a shared parent style, by parent,
+    // element and root font size: siblings of one element name share one style, as they share the box.
+    private const int MaxUserAgentTextStyles = 64;
+    private readonly Dictionary<UserAgentTextKey, TextStyle> userAgentTextStyles = [];
+    // Compared by the parent style's identity, not by its value: hashing a whole style per element would cost more than it saves.
+    // Matched is the set of the element name's user-agent rules that matched (a bit per rule, in sheet order):
+    // an attribute or ancestor condition (abbr[title]) makes elements of one name differ.
+    private readonly record struct UserAgentTextKey(TextStyle Parent, string Element, double RootFontSize, ulong Matched) : IEquatable<UserAgentTextKey>
+    {
+        public bool Equals(UserAgentTextKey other) => ReferenceEquals(Parent, other.Parent)
+            && string.Equals(Element, other.Element, StringComparison.Ordinal) && RootFontSize.Equals(other.RootFontSize)
+            && Matched == other.Matched;
+        public override int GetHashCode() => HashCode.Combine(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Parent), Element, RootFontSize, Matched);
+    }
 
     /// <summary>The value of the text-align declaration that won the cascade for the element the
     /// last <see cref="Compute"/> call computed, or null when none applied to it.</summary>
@@ -49,7 +68,7 @@ internal sealed class CssStylesheets
     private const int MaxComputedBoxes = 256;
     private readonly Dictionary<int, ComputedBox> computedBoxes = [];
     private sealed record ComputedBox(string Element, BoxStyle ParentBox, double RootFontSize, double FontSize,
-        Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, BoxStyle Box);
+        Rgb Color, ListMarkerKind? ListTypeHint, CssDeclaration[] Writes, bool UserAgentVerticalAlign, BoxStyle Box);
     private readonly CssBudget budget;
     private readonly PdfOptions options;
     private readonly CssSyntaxLimits syntaxLimits;
@@ -105,6 +124,7 @@ internal sealed class CssStylesheets
             throw new ArgumentOutOfRangeException(nameof(options), "CSS budgets must be positive.");
         this.options = options;
         budget = new(options, token);
+        userAgentBudget = new(UserAgentStyleSheet.Unlimited, token);
         syntaxLimits = new(options.MaxCssCharacters, options.MaxCssSyntaxNodes, options.MaxCssSyntaxDepth, Cancellation: token);
     }
     /// <summary>
@@ -820,7 +840,7 @@ internal sealed class CssStylesheets
         ListMarkerKind? listTypeHint = null, CssPseudoElement pseudo = CssPseudoElement.None, string? pseudoName = null,
         CssDeclaration? widthHint = null, CssDeclaration? heightHint = null)
     {
-        Array.Clear(winners); var element = path[^1];
+        Array.Clear(winners); Array.Clear(userAgentWinners); var element = path[^1];
         if (budget.UsesRevertLayer) offered.Clear();
         // A pseudo-element is matched through its originating element but validated and computed
         // as the box it generates: an inline span or a block div.
@@ -1093,7 +1113,7 @@ internal sealed class CssStylesheets
             // Lists, list items and tables take them as well; a table has no horizontal margin
             // geometry, so only its zero horizontal margins (dropped above) are accepted.
             var panelMargin = (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr"
-                    or "ul" or "ol" or "menu" or "li")
+                    or "ul" or "ol" or "menu" or "li" or "body")
                     || subject == "table" && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom
                     or CssProperty.MarginLeft or CssProperty.MarginRight);
@@ -1150,6 +1170,11 @@ internal sealed class CssStylesheets
             if (!block && declaration.Property is CssProperty.ColumnGap or CssProperty.RowGap
                 && declaration.Value is "normal" or "initial" or "unset" or "inherit")
                 return;
+            // In the separated border model Chrome paints no border on a row or row group (only cells and the
+            // table have borders), so the declaration is validated and dropped, as it is there.
+            if (!parent.CollapseBorders && subject is "tr" or "thead" or "tbody" or "tfoot"
+                && declaration.Property is >= CssProperty.BorderTopWidth and <= CssProperty.BorderLeftColor)
+                return;
             // A row or row group background paints under its cells (TableMarkup gives it to
             // every cell without its own background); their other box properties still fail.
             if (!block && CssDeclarations.IsBoxProperty(declaration.Property)
@@ -1180,6 +1205,23 @@ internal sealed class CssStylesheets
         // specificity zero that precede every rule, so any author declaration wins.
         if (widthHint is not null) Offer(widthHint, false, default, LayerOrder(null, false));
         if (heightHint is not null) Offer(heightHint, false, default, LayerOrder(null, false));
+        // The user-agent sheet is the lowest origin: its winners are kept apart and only fill in the
+        // properties no author declaration decides. A pseudo-element generates no user-agent style here.
+        ulong userAgentMatched = 0;
+        if (pseudo == CssPseudoElement.None && UserAgentStyleSheet.For(element.Name) is { } userAgentRules)
+            for (var ruleIndex = 0; ruleIndex < userAgentRules.Length; ruleIndex++)
+            {
+                var rule = userAgentRules[ruleIndex];
+                if (!rule.Selector.Matches(path, userAgentBudget)) continue;
+                userAgentMatched |= 1UL << ruleIndex;
+                foreach (var declaration in rule.Declarations)
+                {
+                    var candidate = new Winner(declaration, false, rule.Selector.Specificity, UserAgent: true);
+                    var slot = UserAgentStyleSheet.Slot(declaration.Property);
+                    var current = userAgentWinners[slot];
+                    if (!current.HasValue || candidate.Beats(current.Value)) userAgentWinners[slot] = candidate;
+                }
+            }
         Match(universal);
         if (types.TryGetValue(element.Name, out var typeRules)) Match(typeRules);
         if (element.Id is not null && ids.TryGetValue(element.Id, out var idRules)) Match(idRules);
@@ -1265,50 +1307,31 @@ internal sealed class CssStylesheets
             if (index == (int)CssProperty.Display) displayReverted = true;
             if (index == (int)CssProperty.ListStyleType) listTypeHint = null;
         }
+        // The user-agent declarations decide every property the author origin left alone (or reverted).
+        // The type attribute's marker is a presentational hint: below the author, above this sheet.
+        var userAgentProperties = UserAgentStyleSheet.Properties;
+        for (var slot = 0; slot < userAgentProperties.Length; slot++)
+        {
+            var index = (int)userAgentProperties[slot];
+            if (winners[index] is null && userAgentWinners[slot] is { } userAgent
+                && !(index == (int)CssProperty.ListStyleType && listTypeHint is not null))
+                winners[index] = userAgent;
+        }
         // defaults is the shared parent style, a tag-defaults copy shared with earlier siblings, or
         // (defaultsOwned) a private copy the reader made for this element. Text declarations are
         // applied to one private copy, made on the first one if the reader did not make it; shared
         // styles are never assigned (see TextStyle).
         var style = defaults;
         var styleOwned = defaultsOwned;
-        // Bounded report defaults. A quote is a real inset block rather
-        // than an ignored tag; author CSS overrides each side normally.
-        // CSS-wide initial resets to the zero-margin ordinary box initial.
-        var box = subject switch
-        {
-            "hr" => new BoxStyle
-            {
-                BorderTop = new BorderEdge(1, true, null),
-                MarginTop = new CssLength(8),
-                MarginBottom = new CssLength(8)
-            },
-            "blockquote" or "figure" => new BoxStyle
-            {
-                MarginTop = new CssLength(8),
-                MarginBottom = new CssLength(8),
-                MarginLeft = new CssLength(24),
-                MarginRight = new CssLength(24)
-            },
-            // The HTML user-agent sheet gives dl the paragraph-like block margins and dd the
-            // start indent; dt has no style beyond display:block (blockquote's 8/24 scale).
-            "dl" => new BoxStyle
-            {
-                MarginTop = new CssLength(8),
-                MarginBottom = new CssLength(8)
-            },
-            "dd" => new BoxStyle { MarginLeft = new CssLength(24) },
-            _ => BoxStyle.Initial
-        };
-        // UA list defaults are decimal for ol and disc for ul. Other elements
-        // propagate the inherited marker type, including li and nested panels.
-        // Copy the box only when a marker setting actually differs. The HTML type attribute is a
-        // presentational hint: it replaces the default and loses to every author declaration.
-        var markerKind = listTypeHint ?? subject switch
-        {
-            "ol" => ListMarkerKind.Decimal,
-            "ul" or "menu" => ListMarkerKind.Disc,
-            _ => parentBox.MarkerKind
-        };
+        // Every element starts from the CSS initial box: the user-agent sheet's declarations (the
+        // quote and list insets, the table cell padding, the list marker) arrive below as the lowest
+        // cascade origin, and author CSS overrides each side normally. CSS-wide initial resets to
+        // this zero-margin ordinary box.
+        var box = BoxStyle.Initial;
+        // Other elements propagate the inherited marker type, including li and nested panels. Copy
+        // the box only when a marker setting actually differs. The HTML type attribute is a
+        // presentational hint: it replaces the user-agent default and loses to every author declaration.
+        var markerKind = listTypeHint ?? parentBox.MarkerKind;
         // All of this element's declarations are applied to one private copy, made on the first
         // change; shared boxes (Initial, the parent's) are never assigned (see BoxStyle).
         var owned = false;
@@ -1329,11 +1352,26 @@ internal sealed class CssStylesheets
         // declaration changes them, so they are final at the first box declaration. A cached box was
         // stored only after its whole computation succeeded, so skipped box declarations cannot fail.
         var boxChecked = false; var boxShared = false; var boxKey = 0;
+        // An element whose text declarations all come from the user-agent sheet, on a shared parent
+        // style, computes the same text style as an earlier sibling of its name: it shares that style
+        // (the user-agent sheet gives every paragraph the same margins, every b the same weight).
+        var userAgentTextOnly = !defaultsOwned; var userAgentTextStyle = false;
+        for (var index = 0; index < winners.Length && userAgentTextOnly; index++)
+            if (winners[index] is { } text && !WritesBox(subject, text.Declaration.Property)
+                && text.Declaration.Property != CssProperty.Content && !text.UserAgent)
+                userAgentTextOnly = false;
+        var userAgentTextKey = new UserAgentTextKey(defaults, subject, rootFontSize, userAgentMatched);
+        if (userAgentTextOnly && userAgentTextStyles.TryGetValue(userAgentTextKey, out var sharedText))
+        {
+            style = sharedText;
+            userAgentTextStyle = true;
+        }
         for (var index = 0; index < winners.Length; index++)
         {
             if (winners[index] is not { } winner) continue;
             var declaration = winner.Declaration;
             if (declaration.Property == CssProperty.Content || declaration.Property >= CssProperty.AnimationName) continue;
+            if (userAgentTextStyle && !WritesBox(subject, declaration.Property)) continue;
             if (WritesBox(subject, declaration.Property))
             {
                 if (boxShared) continue;
@@ -1384,7 +1422,7 @@ internal sealed class CssStylesheets
                 {
                     "inherit" => parentBox.VerticalAlign,
                     "initial" or "unset" or "top" => CellVerticalAlign.Top,
-                    "middle" => CellVerticalAlign.Middle,
+                    "middle" => winner.UserAgent ? CellVerticalAlign.DefaultMiddle : CellVerticalAlign.Middle,
                     "bottom" => CellVerticalAlign.Bottom,
                     _ => throw new InvalidOperationException("Unvalidated table-cell vertical alignment.")
                 };
@@ -1414,7 +1452,7 @@ internal sealed class CssStylesheets
                 CssDeclarations.ApplyBox(Own(), parentBox, declaration, rootFontSize, style.FontSize,
                     style.Color);
             else if (subject is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr"
-                    or "ul" or "ol" or "menu" or "li" or "table")
+                    or "ul" or "ol" or "menu" or "li" or "table" or "body")
                 && declaration.Property is (CssProperty.MarginTop or CssProperty.MarginBottom))
                 CssDeclarations.ApplyPanelVerticalMargin(Own(), parentBox, declaration,
                     rootFontSize, style.FontSize);
@@ -1448,11 +1486,13 @@ internal sealed class CssStylesheets
                         : parent;
                 if (!styleOwned) { style = style with { }; styleOwned = true; }
                 CssDeclarations.Apply(style, inheritedParent, initial, declaration,
-                    paragraph || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
+                    paragraph || winner.UserAgent || reportTextFlowHost && declaration.Property is (CssProperty.WhiteSpace
                         or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent)
                         || cellTextIndentHost && declaration.Property is (CssProperty.WhiteSpace or CssProperty.OverflowWrap or CssProperty.WordBreak or CssProperty.TextIndent), computedRoot);
             }
         }
+        if (userAgentTextOnly && !userAgentTextStyle && styleOwned && userAgentTextStyles.Count < MaxUserAgentTextStyles)
+            userAgentTextStyles[userAgentTextKey] = style;
         if (box.HasRoundedCorners && box.Outline.EffectiveWidth > 0)
             throw new FactsPdfException("FPDF1201",
                 "Rectangular report outlines cannot be combined with rounded corners.",
@@ -1489,23 +1529,7 @@ internal sealed class CssStylesheets
         }
         if (boxChecked && !boxShared && owned && computedBoxes.Count < MaxComputedBoxes)
             computedBoxes[boxKey] = new ComputedBox(subject, parentBox, rootFontSize, style.FontSize, style.Color,
-                listTypeHint, BoxWrites(subject), box);
-        // The user-agent sheet gives ul, ol and menu 1em above and below, and none when the list is
-        // nested in another. It applies to each side no author declaration (or revert) wins, in the
-        // list's own computed font size, so it is set here rather than in the cached box above.
-        if (subject is "ul" or "ol" or "menu")
-        {
-            var nested = false;
-            for (var i = 0; i < path.Count - 1 && !nested; i++) nested = path[i].Name is "ul" or "ol" or "menu";
-            var topDefault = !nested && winners[(int)CssProperty.MarginTop] is null;
-            var bottomDefault = !nested && winners[(int)CssProperty.MarginBottom] is null;
-            if (topDefault || bottomDefault)
-                box = box with
-                {
-                    MarginTop = topDefault ? new CssLength(style.FontSize) : box.MarginTop,
-                    MarginBottom = bottomDefault ? new CssLength(style.FontSize) : box.MarginBottom
-                };
-        }
+                listTypeHint, BoxWrites(subject), winners[(int)CssProperty.VerticalAlign] is { UserAgent: true }, box);
         // The HTML hidden attribute is the user-agent rule [hidden]{display:none}, below every author
         // declaration, so an author display:block still shows the element. Applied after the box cache
         // is filled and on a fresh copy, so a cached or shared box never carries it to another element.
@@ -1715,16 +1739,16 @@ internal sealed class CssStylesheets
         return InlineCss.Color(compiled[0].Value, offset);
     }
 
-    // A zero margin on <html> or <body>, or a zero padding on <html>: their used insets are already
-    // zero. CSS-wide keywords compute to zero too (the initial value is 0 and html, the only parent
-    // body can inherit from, never takes a non-zero inset).
+    // A zero margin or padding on <html>: its used insets are already zero. CSS-wide keywords compute
+    // to zero too (the initial value is 0). body has the user-agent margin of 8px, so a zero margin
+    // there is a real declaration.
     private static bool RootZeroInset(string element, CssDeclaration declaration)
     {
         var margin = declaration.Property is CssProperty.MarginTop or CssProperty.MarginRight
             or CssProperty.MarginBottom or CssProperty.MarginLeft;
         var padding = declaration.Property is CssProperty.PaddingTop or CssProperty.PaddingRight
             or CssProperty.PaddingBottom or CssProperty.PaddingLeft;
-        if (!(element == "html" && (margin || padding) || element == "body" && margin)) return false;
+        if (!(element == "html" && (margin || padding))) return false;
         return declaration.Value is "inherit" or "initial" or "unset"
             || CssBoxValues.TryLength(declaration.Value, out var length, out _, rootFontSize: 16,
                 allowRem: true, elementFontSize: 16, allowEm: true) && length.Value == 0;
@@ -1834,7 +1858,7 @@ internal sealed class CssStylesheets
             && property is (CssProperty.BreakBefore or CssProperty.BreakAfter)
         || CssDeclarations.IsBoxProperty(property)
         || element is ("div" or "section" or "article" or "header" or "footer" or "main" or "nav" or "aside" or "hgroup" or "search" or "blockquote" or "figure" or "figcaption" or "address" or "dl" or "dt" or "dd" or "hr"
-                or "ul" or "ol" or "menu" or "li" or "table")
+                or "ul" or "ol" or "menu" or "li" or "table" or "body")
             && property is (CssProperty.MarginTop or CssProperty.MarginBottom);
 
     private int BoxKey(string element, BoxStyle parentBox, double rootFontSize, double fontSize, Rgb color,
@@ -1852,6 +1876,7 @@ internal sealed class CssStylesheets
             {
                 hash.Add(winner.Declaration.Property);
                 hash.Add(winner.Declaration.Value);
+                hash.Add(winner.UserAgent);
             }
         return hash.ToHashCode();
     }
@@ -1861,7 +1886,8 @@ internal sealed class CssStylesheets
     {
         if (!string.Equals(computed.Element, element, StringComparison.Ordinal) || !ReferenceEquals(computed.ParentBox, parentBox)
             || !computed.RootFontSize.Equals(rootFontSize) || !computed.FontSize.Equals(fontSize) || computed.Color != color
-            || computed.ListTypeHint != listTypeHint) return false;
+            || computed.ListTypeHint != listTypeHint
+            || computed.UserAgentVerticalAlign != winners[(int)CssProperty.VerticalAlign] is { UserAgent: true }) return false;
         var writes = computed.Writes; var count = 0;
         for (var index = first; index < winners.Length; index++)
         {

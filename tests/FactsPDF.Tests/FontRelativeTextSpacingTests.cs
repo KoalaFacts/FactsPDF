@@ -37,7 +37,8 @@ public sealed class FontRelativeTextSpacingTests
     [Test]
     public void RelativeValuesEqualIndependentPointValuesInRealPdf()
     {
-        const string start = "<html style='font-size:14pt'><body><section style='font-size:12pt;width:140pt'>";
+        // body margin 0: the user-agent 8px body margin would shift the expected x of the first line.
+        const string start = "<html style='font-size:14pt'><body style='margin:0'><section style='font-size:12pt;width:140pt'>";
         const string end = "</section></body></html>";
         const string relative = "<p style='font-size:1.25em;text-indent:0.4em;letter-spacing:0.1em;word-spacing:0.15rem'>AB CD EF GH IJ KL</p>";
         const string points = "<p style='font-size:15pt;text-indent:6pt;letter-spacing:1.5pt;word-spacing:2.1pt'>AB CD EF GH IJ KL</p>";

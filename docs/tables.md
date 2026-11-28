@@ -52,7 +52,7 @@ Chrome repeats a `thead` and a `tfoot` on every page of a table that continues; 
 
 `min-width` and `max-width` on a `table` limit its used width as Chrome does: the width the table would have (its `width`, or with `width:auto` its max-content width capped at the container) is limited by `max-width` and then raised by `min-width`, so `min-width` wins over `max-width` and over `width`. The columns' content minimums still floor it (a `max-width` below them leaves the table as narrow as its content allows). Like `width`, the limits describe the content box (the border box with `box-sizing:border-box`, and always including the outer half borders of a collapsed table), and percentages use the container's width. The extra width is shared as in [automatic layout](#automatic-column-widths). A table whose columns all have explicit widths grows past their sum by sharing the extra in proportion to the widths (the explicit columns become constrained columns); a `max-width` below the sum of those widths fails `FPDF1302` (Chrome shrinks fixed columns toward their content minimums), and a `min-width` wider than the container fails `FPDF1302` like any wide table. `min-width` and `max-width` on cells, rows, row groups and columns still fail `FPDF1201`. Chrome agrees within 0.02pt on the `g1`–`g7` fixtures of `tests/fixtures/tables-auto/`. Pinned by `TableMinMaxWidthTests`.
 
-Chrome's user-agent sheet gives `table` `box-sizing:border-box`, so a table with its own padding or border and an explicit `width` or `min-width`/`max-width` is wider than Chrome's by that padding and border unless it also sets `box-sizing:border-box`; FactsPDF keeps the documented content-box meaning of the table width (above) for all three.
+The user-agent sheet gives `table` `box-sizing:border-box` as Chrome does, so a table with its own padding or border and an explicit `width` (or `min-width`/`max-width`) has that width as its border box, and its fixed column widths must sum to the width less the padding and borders (`FPDF1302` otherwise); `box-sizing:content-box` keeps the width as the content width. The sheet also gives `table` `border-collapse:separate` and `text-indent:initial`, so a table nested in a cell of a collapsed table is separate again, and an indent set on a container does not reach the cells (set it on the `td`). In the separated model borders on `tr`, `thead`, `tbody` and `tfoot` are accepted and not painted, as in Chrome; in the collapsing model they take part in the border conflict resolution.
 
 ## Tables as flex and grid items
 
@@ -287,12 +287,12 @@ Cell paragraphs must be explicitly closed and cannot contain another paragraph,
 an image, a list, heading, block container or table.
 
 Cell paragraphs support text styling, `margin-top`/`margin-bottom` and padding on
-all four sides. An unstyled paragraph has top margin zero and bottom margin 8pt.
+all four sides. An unstyled paragraph has Chrome's 1em top and bottom margins (the [user-agent stylesheet](css-stylesheets.md#user-agent-stylesheet)).
 Between occupied items, the larger adjacent margin is used. The first top and
 final bottom margin remain inside the cell: a cell is its own formatting context,
 so no margin collapses through its edges. Empty paragraphs
 create no text line and combine their pending margins by maximum. Two empty
-unstyled paragraphs therefore contribute 8pt, not two blank lines. Explicit
+unstyled paragraphs therefore contribute 1em, not two blank lines. Explicit
 `initial` margin values retain the existing zero initial value. Paragraph padding
 (lengths, `em` and `rem`) adds to the cell's content height, narrows the
 paragraph and counts in automatic column widths; unlike margins it never

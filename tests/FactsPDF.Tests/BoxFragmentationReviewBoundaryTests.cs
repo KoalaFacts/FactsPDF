@@ -8,8 +8,11 @@ public sealed class BoxFragmentationReviewBoundaryTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 100, Margin = 20 };
 
+    // The geometry below predates the user-agent stylesheet: no body margin and an 8pt gap below paragraphs only.
+    private const string Neutral = "<style>html,body{margin:0}p{margin:0 0 8pt}</style>";
+
     private static List<LayoutPage> Layout(string html)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral + html, Page, default), Page, default);
 
     [Test]
     public void NewlyMovedChildKeepsPaddingButContinuedParentDoesNotRepeatIt()

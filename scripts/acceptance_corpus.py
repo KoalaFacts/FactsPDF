@@ -126,8 +126,9 @@ def generate_corpus(root: Path) -> list[dict]:
     records = [{'id': f'R{i:04}', 'text': f'R{i:04} - Item {i:03}: verified synthetic record. 合成记录已核对。'} for i in range(1, 101)]
     write_json(root / 'data/report-records.json', records)
     cases = []
-    css = ('body{font-size:10pt;line-height:1.4;color:#1d4568}'
-           'h1{font-size:20pt;margin-top:0pt;margin-bottom:12pt}h2{font-size:14pt;margin-top:0pt;margin-bottom:8pt}'
+    css = ('body{margin:0;font-size:10pt;line-height:1.4;color:#1d4568}'
+           'h1{font-size:20pt;font-weight:normal;margin-top:0pt;margin-bottom:12pt}'
+           'h2{font-size:14pt;font-weight:normal;margin-top:0pt;margin-bottom:8pt}th{font-weight:normal}'
            'p{margin-top:0pt;margin-bottom:6pt}'
            '.panel{padding:10pt;border:1pt solid #1d4568;background-color:#e7f2fa}'
            '.next{break-before:page}')

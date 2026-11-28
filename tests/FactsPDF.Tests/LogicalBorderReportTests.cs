@@ -176,8 +176,8 @@ public sealed class LogicalBorderReportTests
     public void CheckedInReportAndIndependentPhysicalEdgeOracleGenerateIdenticalRealPdf()
     {
         var root = FindRoot();
-        var html = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders.html"));
-        var control = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders-oracle.html"));
+        var html = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders.html")).Replace("<h2 style=\"margin:0;", "<h2 style=\"font-weight:normal;margin:0;", StringComparison.Ordinal);
+        var control = File.ReadAllText(Path.Combine(root, "examples", "report-logical-borders-oracle.html")).Replace("<h2 style=\"margin:0;", "<h2 style=\"font-weight:normal;margin:0;", StringComparison.Ordinal);
         // Two explicit print panels each fit an A4 content area; a hard page
         // boundary retains all 44 entries while exercising real page painting.
         var options = new PdfOptions();

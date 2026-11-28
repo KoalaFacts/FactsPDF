@@ -8,17 +8,32 @@ public sealed class MinMaxWidthTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var target = new MemoryStream();
-        PdfConverter.Convert(html, target, options ?? Page);
+        PdfConverter.Convert(Neutral(html), target, options ?? Page);
         return target.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var page = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, page, default), page, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), page, default), page, default);
     }
 
     private static void Reject(string html, string code)
@@ -26,7 +41,7 @@ public sealed class MinMaxWidthTests
         using var target = new MemoryStream();
         target.Write("original-output"u8);
         target.Position = 4;
-        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, target, Page));
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), target, Page));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(target.ToArray(), Is.EqualTo("original-output"u8.ToArray()));
         Assert.That(target.Position, Is.EqualTo(4));
@@ -91,7 +106,7 @@ public sealed class MinMaxWidthTests
             "<p style='max-width:inherit;min-width:inherit'>A</p>" +
             "<p style='max-width:unset;min-width:initial'>B</p>" +
             "<p style='max-width:none;min-width:auto'>C</p></section>";
-        var section = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
+        var section = (BlockNode)HtmlDocumentReader.ReadTree(Neutral(html), Page, default).Children.Single();
         var children = section.Children.Cast<BlockNode>().ToArray();
         Assert.That(children[0].BoxStyle.MaxWidth?.Value, Is.EqualTo(180));
         Assert.That(children[0].BoxStyle.MinWidth?.Value, Is.EqualTo(50));

@@ -10,7 +10,7 @@ public sealed class OrphansWidowsTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 200, PageHeight = 200, Margin = 20 };
 
-    private const string Base = "p,h2,h3,li,pre{margin:0;font-size:10pt;line-height:20pt}h2,h3{font-weight:normal}"
+    private const string Base = "html,body{margin:0}p,h2,h3,li,pre{margin:0;font-size:10pt;line-height:20pt}h2,h3{font-weight:normal}"
         + "ul{margin:0;padding-left:20pt}";
 
     private static string P(string label, int lines, string style = "", string tag = "p")

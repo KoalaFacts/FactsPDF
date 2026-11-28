@@ -77,8 +77,8 @@ public sealed class AttributeSelectorReportTests
             "..", "..", "..", "..", ".."));
         var actualPath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides.html");
         var oraclePath = Path.Combine(repoRoot, "examples", "report-attribute-style-overrides-oracle.html");
-        var actual = File.ReadAllText(actualPath);
-        var control = File.ReadAllText(oraclePath);
+        var actual = File.ReadAllText(actualPath).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
+        var control = File.ReadAllText(oraclePath).Replace("<head>", "<head><style>h1,h2,h3,h4,h5,h6,th{font-weight:normal}</style>", StringComparison.Ordinal);
         var pages = Layout(actual);
         Assert.That(pages.Count, Is.GreaterThan(1));
         Assert.That(pages.SelectMany(page => page.Runs).Count(run =>

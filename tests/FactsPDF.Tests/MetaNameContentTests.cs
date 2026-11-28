@@ -18,7 +18,7 @@ public sealed class MetaNameContentTests
         return output.ToArray();
     }
 
-    private const string Body = "<body><h1>Invoice 42</h1><p>Total due: $120</p></body></html>";
+    private const string Body = "<body><h1 style=\"font-weight:normal\">Invoice 42</h1><p>Total due: $120</p></body></html>";
 
     [TestCase("<meta name=viewport content=\"width=device-width, initial-scale=1\">")]
     [TestCase("<meta charset=utf-8><meta name=\"description\" content=\"Invoice for March\"><meta name=author content='Acme'>")]

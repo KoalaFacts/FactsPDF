@@ -113,11 +113,9 @@ internal static class ListMarkerTypes
 /// <summary>Per-layout marker metadata. Parsed trees remain reusable and unmodified.</summary>
 internal sealed class ListLayout
 {
-    private readonly Dictionary<BlockNode, double> gutters = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Paragraph, ListMarker> markers = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<BlockNode, IReadOnlyList<BlockChild>> children = new(ReferenceEqualityComparer.Instance);
 
-    internal double Gutter(BlockNode node) => gutters.GetValueOrDefault(node);
     internal ListMarker? Marker(Paragraph paragraph) => markers.GetValueOrDefault(paragraph);
     internal IReadOnlyList<BlockChild> Children(BlockNode node) => children.GetValueOrDefault(node) ?? node.Children;
 
@@ -129,7 +127,6 @@ internal sealed class ListLayout
         foreach (var child in Descendants(root.Children, cancellation))
         {
             if (child is not BlockNode list || list.Name is not ("ol" or "ul" or "menu")) continue;
-            var maximum = 0d;
             // Both forward and reverse sequence positions advance for every
             // direct li, including marker-free items. Nested lists compute
             // their own counters. The parsed tree remains immutable.
@@ -154,7 +151,6 @@ internal sealed class ListLayout
                 if (kind == ListMarkerKind.None) continue;
                 var text = ListMarkerTypes.MarkerText(kind, itemOrdinal, item.SourceOffset);
                 var width = text is null ? 0.3 * item.Style.FontSize : Measure(text, item.Style, item.SourceOffset);
-                maximum = Math.Max(maximum, width);
                 Paragraph? paragraph = null;
                 if (item.BoxStyle.MarkerInside)
                 {
@@ -187,12 +183,6 @@ internal sealed class ListLayout
                 }
                 result.markers.Add(paragraph, new(text, item.Style, width, item.SourceOffset, kind, item.BoxStyle.MarkerInside));
             }
-            // Chrome indents a list only by its padding-left (the user-agent 40px, or the author's
-            // value, zero included); a marker hangs outside the item whatever that is. FactsPDF
-            // models the user-agent padding as this gutter, so an author padding-left replaces it.
-            if (list.Children.Count > 0)
-                result.gutters.Add(list, list.BoxStyle.PaddingLeftAuthored ? 0
-                    : Math.Max(2 * list.Style.FontSize, maximum + 0.5 * list.Style.FontSize));
         }
         return result;
 

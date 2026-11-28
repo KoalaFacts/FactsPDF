@@ -8,17 +8,20 @@ public sealed class ParagraphPercentageVerticalMarginTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // Percentages resolve against the 260pt page content width, so the 8px user-agent body margin is reset.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static byte[] Render(string html, PdfOptions? options = null)
     {
         using var stream = new MemoryStream();
-        PdfConverter.Convert(html, stream, options ?? Page);
+        PdfConverter.Convert(NoBodyMargin + html, stream, options ?? Page);
         return stream.ToArray();
     }
 
     private static List<LayoutPage> Layout(string html, PdfOptions? options = null)
     {
         var o = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, o, default), o, default);
     }
 
     private static void RejectPreservingOutput(string html, string code, PdfOptions? options = null)
@@ -37,7 +40,7 @@ public sealed class ParagraphPercentageVerticalMarginTests
     [TestCase("pre")]
     public void VerticalPercentagesMatchResolvedPointMarginsAndActualPaint(string tag)
     {
-        var actual = $"<{tag} style='margin:10% 0 5%;padding:4pt;background:#ddeeff'>Report text</{tag}>" +
+        var actual = $"<{tag} style='margin:10% 0 5%;padding:4pt;background:#ddeeff;font-weight:normal'>Report text</{tag}>" +
             "<p style='margin:0'>Following text</p>";
         var oracle = actual.Replace("margin:10% 0 5%", "margin:26pt 0 13pt");
         Assert.That(Render(actual), Is.EqualTo(Render(oracle)));

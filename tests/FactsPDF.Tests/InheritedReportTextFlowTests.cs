@@ -43,9 +43,9 @@ public sealed class InheritedReportTextFlowTests
         const string first = "PAID REFERENCE INVOICE";
         const string second = "NEXT MONTHLY INSPECTION";
         var actual = "<section style='" + rule + "'><p style='width:90pt'>" + first +
-            "</p><article><h3 style='width:110pt'>" + second + "</h3></article></section>";
+            "</p><article><h3 style='font-weight:normal;width:110pt'>" + second + "</h3></article></section>";
         var oracle = "<section><p style='width:90pt;" + rule + "'>" + first +
-            "</p><article><h3 style='width:110pt;" + rule + "'>" + second + "</h3></article></section>";
+            "</p><article><h3 style='font-weight:normal;width:110pt;" + rule + "'>" + second + "</h3></article></section>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf(oracle)),
             "Inherited computed CSS must generate the same searchable, positioned PDF as explicit child CSS.");
         Assert.That(Layout(actual).SelectMany(p => p.Runs).Select(x => x.Text),
@@ -58,12 +58,12 @@ public sealed class InheritedReportTextFlowTests
     {
         const string css = "overflow-wrap:break-word;word-break:break-all;text-indent:8pt";
         const string inner = "<section><p style='width:65pt'>PAID REFERENCE2026</p>" +
-            "<blockquote><h4 style='width:90pt'>OPEN INSPECTION2026</h4></blockquote></section>";
+            "<blockquote><h4 style='font-weight:normal;width:90pt'>OPEN INSPECTION2026</h4></blockquote></section>";
         var actual = "<html" + (target == "html" ? " style='" + css + "'" : "") +
             "><body" + (target == "body" ? " style='" + css + "'" : "") +
             ">" + inner + "</body></html>";
         const string explicitInner = "<section><p style='width:65pt;" + css + "'>PAID REFERENCE2026</p>" +
-            "<blockquote><h4 style='width:90pt;" + css + "'>OPEN INSPECTION2026</h4></blockquote></section>";
+            "<blockquote><h4 style='font-weight:normal;width:90pt;" + css + "'>OPEN INSPECTION2026</h4></blockquote></section>";
         Assert.That(Pdf(actual), Is.EqualTo(Pdf("<html><body>" + explicitInner + "</body></html>")));
     }
 
@@ -98,7 +98,8 @@ public sealed class InheritedReportTextFlowTests
             Is.EqualTo(Pdf("<section><p style='width:100pt;text-indent:20%'>Inspection notes</p></section>")));
         var positions = Layout("<section style='text-indent:20%'>" + child + "</section>")
             .SelectMany(p => p.Runs).ToArray();
-        Assert.That(positions[0].X, Is.EqualTo(36).Within(0.001));
+        // 16pt page margin + 6pt UA body margin + 20% of the child's 100pt containing width.
+        Assert.That(positions[0].X, Is.EqualTo(42).Within(0.001));
     }
 
     [Test]
@@ -137,14 +138,17 @@ public sealed class InheritedReportTextFlowTests
     [TestCase("left", 12d)]
     [TestCase("center", 6d)]
     [TestCase("right", 0d)]
-    public void InheritedTableCellIndentAlignsTheActualFirstLineWithoutMovingContinuation(
+    public void CellIndentAlignsTheActualFirstLineWithoutMovingContinuation(
         string alignment, double firstLineShift)
     {
         var table = "<table style='width:100pt'><colgroup><col style='width:100pt'></colgroup>" +
             "<tbody><tr><td><p style='text-align:" + alignment +
             "'>FIRST<br>SECOND<br>THIRD</p></td></tr></tbody></table>";
-        var inherited = "<section style='text-indent:12pt'>" + table + "</section>";
+        // The user-agent sheet resets text-indent on table, so an indent on the section never reaches the cell.
+        var throughTable = "<section style='text-indent:12pt'>" + table + "</section>";
+        var inherited = table.Replace("<td>", "<td style='text-indent:12pt'>");
         var unindented = "<section>" + table + "</section>";
+        Assert.That(Pdf(throughTable), Is.EqualTo(Pdf(unindented)));
         var placed = Layout(inherited).SelectMany(page => page.Runs).ToArray();
         var baseline = Layout(unindented).SelectMany(page => page.Runs).ToArray();
 
@@ -165,20 +169,20 @@ public sealed class InheritedReportTextFlowTests
     }
 
     [Test]
-    public void InheritedTableIndentWrapsLongCellTextAndProtectsUnfitOutput()
+    public void CellIndentWrapsLongCellTextAndProtectsUnfitOutput()
     {
         const string content = "LONGREFERENCEINVOICENUMBER2026";
         const string table = "<table style='width:75pt'><colgroup><col style='width:75pt'></colgroup>" +
             "<tbody><tr><td><p style='word-break:break-all'>" + content +
             "</p></td></tr></tbody></table>";
-        var actual = "<div style='text-indent:9pt'>" + table + "</div>";
+        var actual = "<div>" + table.Replace("<td>", "<td style='text-indent:9pt'>") + "</div>";
         var lines = Layout(actual).SelectMany(page => page.Runs).ToArray();
         var noIndent = Layout("<div>" + table + "</div>").SelectMany(page => page.Runs).ToArray();
         Assert.That(lines.Length, Is.GreaterThan(1));
         Assert.That(lines[0].X - noIndent[0].X, Is.EqualTo(9).Within(0.001));
         Assert.That(string.Concat(lines.Select(line => line.Text)), Is.EqualTo(content));
         Assert.That(Pdf(actual), Is.Not.EqualTo(Pdf("<div>" + table + "</div>")));
-        RejectWithoutChangingDestination("<section style='text-indent:120pt'>" + table +
+        RejectWithoutChangingDestination("<section>" + table.Replace("<td>", "<td style='text-indent:120pt'>") +
             "</section>", "FPDF1302");
     }
 
@@ -192,7 +196,8 @@ public sealed class InheritedReportTextFlowTests
             "<p>Alpha is the first invoice detail.</p></body></html>";
 
         var runs = Layout(relative).SelectMany(page => page.Runs).ToArray();
-        Assert.That(runs[0].X, Is.EqualTo(Page.Margin + 24).Within(0.001),
+        // The 6pt UA body margin sits between the page margin and the 24pt indent.
+        Assert.That(runs[0].X, Is.EqualTo(Page.Margin + 6 + 24).Within(0.001),
             "Root rem must resolve against the final 24pt html font, not the initial 12pt.");
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(pointOracle)));
         Assert.That(Pdf(relative), Is.EqualTo(Pdf(bodyOracle)));

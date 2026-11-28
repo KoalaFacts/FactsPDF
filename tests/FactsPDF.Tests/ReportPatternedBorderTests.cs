@@ -10,15 +10,30 @@ public sealed class ReportPatternedBorderTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 240, Margin = 20 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options ?? Page);
+        PdfConverter.Convert(Neutral(html), output, options ?? Page);
         return output.ToArray();
     }
 
     private static LayoutPage[] Layout(string html)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default).ToArray();
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), Page, default), Page, default).ToArray();
 
     private static (string X1, string Y1, string X2, string Y2) ClippedLine(string pdf)
     {
@@ -36,7 +51,7 @@ public sealed class ReportPatternedBorderTests
         using var output = new MemoryStream();
         output.Write("ORIGINAL"u8);
         var error = Assert.Throws<FactsPdfException>(() =>
-            PdfConverter.Convert(html, output, options ?? Page));
+            PdfConverter.Convert(Neutral(html), output, options ?? Page));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(output.ToArray(), Is.EqualTo("ORIGINAL"u8.ToArray()));
         Assert.That(Pdf("<p>Recovery</p>").Length, Is.GreaterThan(100));
@@ -65,7 +80,7 @@ public sealed class ReportPatternedBorderTests
             "border-width:1pt 2pt 3pt 4pt;border-color:blue!important}</style>";
         var html = stylesheet + "<section class=report style='width:120pt;" +
             "border-left:5pt dashed red;border-top-style:dotted'>TEXT</section>";
-        var box = ((BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single()).BoxStyle;
+        var box = ((BlockNode)HtmlDocumentReader.ReadTree(Neutral(html), Page, default).Children.Single()).BoxStyle;
         Assert.That(box.BorderTop.Pattern, Is.EqualTo(BorderPattern.Dotted));
         Assert.That(box.BorderRight.Pattern, Is.EqualTo(BorderPattern.Dotted));
         Assert.That(box.BorderBottom.Pattern, Is.EqualTo(BorderPattern.Solid));
@@ -88,7 +103,7 @@ public sealed class ReportPatternedBorderTests
             "article{border-style:inherit;border-top-style:dotted!important}</style>" +
             "<section><article>INHERITED</article>" +
             "<article style='border-style:solid'>NOTICE</article></section>";
-        var root = (BlockNode)HtmlDocumentReader.ReadTree(html, Page, default).Children.Single();
+        var root = (BlockNode)HtmlDocumentReader.ReadTree(Neutral(html), Page, default).Children.Single();
         var inherited = (BlockNode)root.Children[0];
         var overridden = (BlockNode)root.Children[1];
         Assert.That(inherited.BoxStyle.BorderTop.Pattern, Is.EqualTo(BorderPattern.Dotted));

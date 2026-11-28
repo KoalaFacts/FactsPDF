@@ -9,8 +9,14 @@ import re
 import statistics
 from pathlib import Path
 
-BASELINE_SHA = '9b9ad5b04c3cc89a18f620b346589381b693695b'
+BASELINE_SHA = '2df75f60bb1d94fc91a0a15df2cdbe656f7417ce'
 EXPECTED_PAGES = {'plain': 1, 'nested': 1, 'fragmented': 6}
+
+
+# The user-agent stylesheet gives body an 8px margin and p a 1em margin. The baseline is the last commit before it
+# (the pre-stylesheet engine, merged from M8 onwards), so the inputs author that layout (no body margin, 8pt
+# paragraph margins) and the byte comparison stays about the engine rather than the new browser defaults.
+AUTHORED_DEFAULTS = '<style>body{margin:0}p{margin-top:8pt;margin-bottom:8pt}</style>'
 
 
 def workloads() -> dict[str, str]:
@@ -23,7 +29,7 @@ def workloads() -> dict[str, str]:
         fragments.append(f"<p style='{before}margin-bottom:0'>Fragment page {page + 1}.</p>")
         fragments.extend(f'<p>Page {page + 1} line {line:02d} with searchable text.</p>' for line in range(12))
     fragmented = "<section style='padding:4pt;border:2pt solid #1d4568;background-color:#cee8fb'>" + ''.join(fragments) + '</section>'
-    return {'plain': plain, 'nested': nested, 'fragmented': fragmented}
+    return {name: AUTHORED_DEFAULTS + html for name, html in {'plain': plain, 'nested': nested, 'fragmented': fragmented}.items()}
 
 
 def _require(condition: bool, message: str) -> None:

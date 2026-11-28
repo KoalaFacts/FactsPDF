@@ -268,11 +268,11 @@ public sealed class BreakInsideAvoidTests
             "<section class='card' style='break-inside:initial'>" +
             "<p>ONE</p></section>";
         var node = HtmlDocumentReader.ReadTree(html, Page, default)
-            .Children.OfType<BlockNode>().Single(n => n.Name == "section");
+            .Children.OfType<BlockNode>().Single(n => n.Name == "body").Children.OfType<BlockNode>().Single(n => n.Name == "section");
         Assert.That(node.BoxStyle.AvoidBreakInside, Is.True);
         var reset = html.Replace("break-inside:avoid!important", "break-inside:avoid");
         var resetNode = HtmlDocumentReader.ReadTree(reset, Page, default)
-            .Children.OfType<BlockNode>().Single(n => n.Name == "section");
+            .Children.OfType<BlockNode>().Single(n => n.Name == "body").Children.OfType<BlockNode>().Single(n => n.Name == "section");
         Assert.That(resetNode.BoxStyle.AvoidBreakInside, Is.False);
     }
 

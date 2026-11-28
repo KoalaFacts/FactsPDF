@@ -21,7 +21,7 @@ public sealed class TabSizeTests
     }
 
     private static string Report(string declarations) =>
-        $"<style>html{{{declarations}}} h2{{{declarations}}} .box{{width:200pt;border:1pt solid #333;{declarations}}} .unused{{{declarations}}}</style>" +
+        $"<style>h2,th{{font-weight:normal}} html{{{declarations}}} h2{{{declarations}}} .box{{width:200pt;border:1pt solid #333;{declarations}}} .unused{{{declarations}}}</style>" +
         "<h2>Invoice</h2>" +
         $"<div class='box'><p style='{declarations}'>Paid\tin full</p></div>" +
         $"<table style='width:200pt'><colgroup><col style='width:200pt'></colgroup><tbody><tr><td style='{declarations}'>Total</td></tr></tbody></table>" +

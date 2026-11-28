@@ -8,7 +8,8 @@ namespace FactsPDF.Tests;
 public sealed class PageNumberTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 240, PageHeight = 120, Margin = 20 };
-    private const string Css = "<style>p,h2{font-size:10pt;line-height:2;margin-top:0;margin-bottom:0;font-weight:normal}</style>";
+    // The body margin is reset so the page content area is the 80pt the witnesses are sized for.
+    private const string Css = "<style>body{margin:0}p,h2{font-size:10pt;line-height:2;margin-top:0;margin-bottom:0;font-weight:normal}</style>";
 
     private static PdfOptions Numbered(PdfOptions options) => options with { PageNumbers = true };
     private static byte[] Pdf(string html, PdfOptions options) => TableLayoutTests.Pdf(html, options);

@@ -8,6 +8,9 @@ public sealed class HorizontalParagraphMarginTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 300, PageHeight = 500, Margin = 20 };
 
+    // The default 8px body margin would shift every coordinate below; these tests are about paragraph margins.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static byte[] Pdf(string html, PdfOptions? page = null)
     {
         using var output = new MemoryStream();
@@ -40,7 +43,7 @@ public sealed class HorizontalParagraphMarginTests
     [TestCase("margin:2mm 10% 3mm 4mm", "margin-top:2mm;margin-right:10%;margin-bottom:3mm;margin-left:4mm")]
     public void ShorthandMatchesIndependentlyAuthoredLonghandsInActualPdf(string shorthand, string longhands)
     {
-        const string start = "<div style='width:180pt;padding:5pt;background:#f0f6fa'><h2 style='";
+        const string start = "<style>h2{font-weight:normal}</style><div style='width:180pt;padding:5pt;background:#f0f6fa'><h2 style='";
         const string end = "'>Equipment inspection</h2><p style='margin:0 4pt 3pt'>Checked all equipment.</p></div>";
         Assert.That(Pdf(start + shorthand + end), Is.EqualTo(Pdf(start + longhands + end)));
     }
@@ -48,7 +51,8 @@ public sealed class HorizontalParagraphMarginTests
     [Test]
     public void MarginsReduceAvailableWidthAndMoveTextAndPaintedBox()
     {
-        const string html = "<p style='margin-left:20pt;margin-right:30pt;background:#e0e9f1;text-align:right'>AB</p>" +
+        const string html = NoBodyMargin +
+            "<p style='margin-left:20pt;margin-right:30pt;background:#e0e9f1;text-align:right'>AB</p>" +
             "<p style='margin:0'>C</p>";
         var page = Layout(html).Single();
         Assert.That(page.Runs.Select(x => x.Text), Is.EqualTo(new[] { "AB", "C" }));
@@ -62,9 +66,10 @@ public sealed class HorizontalParagraphMarginTests
     [Test]
     public void PercentSidesUseContainingWidthAndStylesheetCascadeHonoursImportant()
     {
-        const string html = "<style>.note{margin-left:10%;margin-right:5%!important}" +
+        const string html = "<style>html,body{margin:0}.note{margin-left:10%;margin-right:5%!important}" +
             "p.note{margin:0 12pt 0 8pt}</style><p class=note style='margin-left:9pt;margin-right:14pt'>A</p>";
         var tree = HtmlDocumentReader.ReadTree(html, Page, default);
+        // An implied body whose margin the author zeroed adds no box, so the paragraph is the root's child.
         var paragraph = (BlockNode)tree.Children.Single();
         Assert.That(paragraph.BoxStyle.MarginLeft.Value, Is.EqualTo(9));
         Assert.That(paragraph.BoxStyle.MarginRight.Value, Is.EqualTo(5));
@@ -84,8 +89,8 @@ public sealed class HorizontalParagraphMarginTests
     public void HorizontalMarginsChangeActualWrappingAndRetainEveryWord()
     {
         const string words = "alpha beta gamma delta epsilon zeta eta theta";
-        var full = Layout("<div style='width:120pt'><p>" + words + "</p></div>").Single();
-        var inset = Layout("<div style='width:120pt'><p style='margin-left:25pt;margin-right:25pt'>" + words + "</p></div>").Single();
+        var full = Layout(NoBodyMargin + "<div style='width:120pt'><p>" + words + "</p></div>").Single();
+        var inset = Layout(NoBodyMargin + "<div style='width:120pt'><p style='margin-left:25pt;margin-right:25pt'>" + words + "</p></div>").Single();
         Assert.That(inset.Runs.Count, Is.GreaterThan(full.Runs.Count));
         Assert.That(string.Concat(inset.Runs.Select(x => x.Text)).Replace(" ", ""),
             Is.EqualTo(words.Replace(" ", "")));
@@ -95,7 +100,7 @@ public sealed class HorizontalParagraphMarginTests
     [Test]
     public void MarginsPersistThroughPageBreaksWithoutMovingSubsequentSiblings()
     {
-        const string html = "<p style='margin:0 0 3pt 20pt;background:red'>FIRST</p>" +
+        const string html = NoBodyMargin + "<p style='margin:0 0 3pt 20pt;background:red'>FIRST</p>" +
             "<p style='break-before:page;margin-left:25pt;margin-right:10pt;background:blue'>SECOND</p>" +
             "<p style='margin:0'>THIRD</p>";
         var pages = Layout(html, Page with { PageHeight = 110 });
@@ -137,8 +142,12 @@ public sealed class HorizontalParagraphMarginTests
     }
 
     [Test]
-    public void UnsupportedContainerMarginsStillFailWithoutFallback()
-        => Reject("<body style='margin-left:2pt'>A</body>", "FPDF1201");
+    public void AnAuthoredBodyMarginReplacesTheUserAgentMargin()
+    {
+        // The body is a real box: its author margin-left of 2pt replaces the 6pt user-agent one.
+        var run = Layout("<body style='margin-left:2pt'>A</body>").Single().Runs.Single();
+        Assert.That(run.X, Is.EqualTo(20 + 2).Within(0.001));
+    }
 
     [Test]
     public void OldZeroHorizontalShorthandRetainsItsExactPdfBytes()

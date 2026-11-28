@@ -103,7 +103,7 @@ def validate_package(path, root, version, source, target, *, assembly_reader=Non
         assert single('version').text == version, 'Package version'
         repository = dict(single('repository').attrib)
         assert repository == dict(type='git', url='https://github.com/KoalaFacts/FactsPDF', commit=source), 'Package repository source'
-        assert single('license').attrib == {'type': 'file'} and single('license').text == 'LICENSE.md', 'Package license metadata'
+        assert single('license').attrib == {'type': 'expression'} and single('license').text == 'Apache-2.0', 'Package license metadata'
         assert single('readme').text == 'README.md', 'Package README metadata'
         assert package.read('LICENSE.md') == (root / 'LICENSE.md').read_bytes(), 'License changed during packing'
         assert package.read('README.md') == (root / 'README.md').read_bytes(), 'README missing or incorrect'

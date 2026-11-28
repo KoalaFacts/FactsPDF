@@ -36,8 +36,9 @@ def check_geometry(pages, font_path):
     with TTFont(font_path) as font:
         cmap = font.getBestCmap()
         width = lambda value: sum(font['hmtx'][cmap[ord(c)]][0] for c in value) * 12 / font['head'].unitsPerEm
-        gutter = max(24, max(width(f'{n}.') for n in range(1, 13)) + 6)
-        expected_x = 36 + 9 + gutter
+        # Chrome's user-agent padding-left of 40px (30pt) on every ol and ul; markers hang 0.5em (6pt) outside the item.
+        indent = 30
+        expected_x = 36 + 9 + indent
         markers = []
         records = {}
         for page_index, words in enumerate(pages):
@@ -63,7 +64,7 @@ def check_geometry(pages, font_path):
         assert records['C2-003'][0] + 1 < records['C2-004'][0], 'Long item did not naturally span pages'
         assert records['C2-010'][0] > records['C2-009'][0], 'Explicit item paragraph page break absent'
         for name in ['C2-N01', 'C2-N02', 'C2-N03', 'C2-N04']:
-            assert abs(records[name][1]['xMin'] - (expected_x + 24)) < .02, 'Nested list gutter differs'
+            assert abs(records[name][1]['xMin'] - (expected_x + indent)) < .02, 'Nested list indent differs'
         assert abs(records['C2-END'][1]['xMin'] - 36) < .02, 'Ordinary text did not recover its containing width'
     return {'markerCount': len(markers), 'recordCount': len(records), 'topLevelBodyX': expected_x,
             'longItemStartPage': records['C2-003'][0] + 1, 'nextItemStartPage': records['C2-004'][0] + 1}
@@ -210,7 +211,7 @@ def main():
     for mode, command in [('cli', [args.dotnet, args.cli_dll]), ('native', [args.native_cli])]:
         for name, html, code in [('third-level', '<ol><li><ul><li><ol></ol></li></ul></li></ol>', 'FPDF1101'),
                                 ('attribute', '<ol start="0"><li>A</li></ol>', 'FPDF1103'),
-                                ('gutter', '<ol style="width:10pt"><li>A</li></ol>', 'FPDF1302'),
+                                ('gutter', '<div style="width:20pt"><ol><li>A</li></ol></div>', 'FPDF1302'),
                                 ('marker-style', '<ol><li style="font-weight:bold"><p style="font-weight:normal">A</p></li></ol>', 'FPDF1507')]:
             input_path = out / f'{mode}-{name}.html'; input_path.write_text(html)
             for destination in ['stdout', 'existing', 'new']:

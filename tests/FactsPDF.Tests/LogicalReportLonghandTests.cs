@@ -20,8 +20,11 @@ public sealed class LogicalReportLonghandTests
         return stream.ToArray();
     }
 
+    // Coordinates are measured from the page margin, so zero the user-agent body margin for layout checks.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static List<LayoutPage> Layout(string html)
-        => TextLayout.Layout(HtmlDocumentReader.ReadTree(html, Page, default), Page, default);
+        => TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, Page, default), Page, default);
 
     private static void Reject(string html, string code)
     {
@@ -180,7 +183,9 @@ public sealed class LogicalReportLonghandTests
     public void InvalidUnmatchedRuleAndUnsupportedElementsFailBeforeOutput()
     {
         Reject("<style>.absent{padding-inline-start:env(x)}</style><p>A</p>", "FPDF1202");
-        Reject("<body style='margin-inline-start:4pt'><p>A</p></body>", "FPDF1201");
+        // Body has a real margin in the user-agent sheet, so its logical margin is accepted like any panel's.
+        Assert.That(Render("<body style='margin-inline-start:4pt'><p>A</p></body>"),
+            Is.EqualTo(Render("<body style='margin-left:4pt'><p>A</p></body>")));
         Reject("<span style='padding-block-end:2pt'>A</span>", "FPDF1201");
         Reject("<p style='width:250pt;margin-inline-start:40pt;" +
             "margin-inline-end:40pt'>OVERWIDE</p>", "FPDF1302");

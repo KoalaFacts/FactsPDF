@@ -1,4 +1,4 @@
-"""Run the published Windows x64 native CLI itself and inspect its real PDF output."""
+"""Run a published Native AOT CLI (any supported RID) itself and inspect its real PDF output."""
 import argparse
 import hashlib
 import json
@@ -16,16 +16,34 @@ import tempfile
 def digest(data): return hashlib.sha256(data).hexdigest()
 
 
-def validate_platform(system, machine):
-    assert system == 'Windows' and machine.lower() in ('amd64', 'x86_64'), 'Requires actual Windows x64 execution'
+# rid -> (host system, host machines, executable format, machine/cpu id, executable name, label)
+TARGETS = {
+    'win-x64': ('Windows', ('amd64', 'x86_64'), 'pe', 0x8664, 'FactsPDF.Cli.exe', 'Windows x64'),
+    'win-arm64': ('Windows', ('arm64', 'aarch64'), 'pe', 0xaa64, 'FactsPDF.Cli.exe', 'Windows arm64'),
+    'linux-x64': ('Linux', ('x86_64', 'amd64'), 'elf', 62, 'FactsPDF.Cli', 'Linux x64'),
+    'linux-arm64': ('Linux', ('aarch64', 'arm64'), 'elf', 183, 'FactsPDF.Cli', 'Linux arm64'),
+    'osx-x64': ('Darwin', ('x86_64',), 'macho', 0x01000007, 'FactsPDF.Cli', 'macOS x64'),
+    'osx-arm64': ('Darwin', ('arm64',), 'macho', 0x0100000c, 'FactsPDF.Cli', 'macOS arm64'),
+}
 
 
-def validate_pe(data):
+def detect_rid(system, machine):
+    matches = [rid for rid, t in TARGETS.items() if t[0] == system and machine.lower() in t[1]]
+    assert len(matches) == 1, f'Unsupported host {system} {machine}'
+    return matches[0]
+
+
+def validate_platform(system, machine, rid='win-x64'):
+    host, machines, _, _, _, label = TARGETS[rid]
+    assert system == host and machine.lower() in machines, f'Requires actual {label} execution'
+
+
+def validate_pe(data, machine=0x8664):
     assert len(data) >= 64 and data[:2] == b'MZ', 'Missing PE DOS header'
     offset = struct.unpack_from('<I', data, 0x3c)[0]
     assert offset >= 64 and offset + 24 <= len(data), 'Truncated PE header'
     assert data[offset:offset+4] == b'PE\0\0', 'Missing PE signature'
-    assert struct.unpack_from('<H', data, offset+4)[0] == 0x8664, 'Expected AMD64 PE machine'
+    assert struct.unpack_from('<H', data, offset+4)[0] == machine, 'Unexpected PE machine'
     size, flags = struct.unpack_from('<HH', data, offset+20)
     assert flags & 2 and not flags & 0x2000, 'Expected executable, not DLL'
     optional = offset + 24
@@ -36,12 +54,39 @@ def validate_pe(data):
     assert struct.unpack_from('<II', data, optional+112+14*8) == (0, 0), 'Unexpected managed CLR header'
     # An ordinary managed apphost also has this PE shape. AOT provenance additionally
     # requires the actual PublishAot build and successful isolated direct execution.
-    return dict(machine='AMD64', format='PE32+', managedHeaderAbsent=True)
+    return dict(machine={0x8664: 'AMD64', 0xaa64: 'ARM64'}.get(machine, hex(machine)), format='PE32+',
+                managedHeaderAbsent=True)
+
+
+def validate_elf(data, machine):
+    assert len(data) >= 64 and data[:4] == b'ELF', 'Missing ELF magic'
+    assert data[4] == 2 and data[5] == 1, 'Expected 64-bit little-endian ELF'
+    kind, found = struct.unpack_from('<HH', data, 16)
+    assert kind in (2, 3), 'Expected executable or PIE, not a relocatable or core file'
+    assert found == machine, 'Unexpected ELF machine'
+    return dict(machine={62: 'x86-64', 183: 'AArch64'}.get(machine, str(machine)), format='ELF64')
+
+
+def validate_macho(data, cpu):
+    assert len(data) >= 32, 'Truncated Mach-O header'
+    magic = struct.unpack_from('<I', data, 0)[0]
+    assert magic != 0xbebafeca, 'Universal (fat) binary, expected a thin executable'
+    assert magic == 0xfeedfacf, 'Missing 64-bit little-endian Mach-O magic'
+    found, _, kind = struct.unpack_from('<III', data, 4)
+    assert found == cpu, 'Unexpected Mach-O CPU type'
+    assert kind == 2, 'Expected an executable Mach-O file type'
+    return dict(machine={0x01000007: 'x86_64', 0x0100000c: 'arm64'}.get(cpu, hex(cpu)), format='Mach-O 64')
+
+
+def validate_binary(data, rid):
+    _, _, kind, machine, _, _ = TARGETS[rid]
+    return {'pe': validate_pe, 'elf': validate_elf, 'macho': validate_macho}[kind](data, machine)
 
 
 def stage_executable(source, directory):
-    target = directory / 'FactsPDF.Cli.exe'
+    target = directory / source.name
     shutil.copyfile(source, target)
+    target.chmod(target.stat().st_mode | 0o111)
     assert sorted(p.name for p in directory.iterdir()) == [target.name], 'Managed sidecars in execution directory'
     return target
 
@@ -76,15 +121,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--rid', choices=sorted(TARGETS), help='Expected runtime identifier; default is the host')
     args = parser.parse_args()
-    validate_platform(platform.system(), platform.machine())
+    rid = args.rid or detect_rid(platform.system(), platform.machine())
+    validate_platform(platform.system(), platform.machine(), rid)
+    label = TARGETS[rid][5]
     root = Path(__file__).resolve().parents[1]
     source = args.executable.resolve(); output = args.output.resolve()
-    assert source.name == 'FactsPDF.Cli.exe', 'Expected the published CLI executable'
-    pe = validate_pe(source.read_bytes())
+    assert source.name == TARGETS[rid][4], 'Expected the published CLI executable'
+    header = validate_binary(source.read_bytes(), rid)
     output.mkdir(parents=True, exist_ok=False)
     commands = []; versions = {}
-    with tempfile.TemporaryDirectory(prefix='factspdf-windows-aot-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='factspdf-native-aot-') as temporary:
         work = Path(temporary); executable = stage_executable(source, work)
         assert executable.read_bytes() == source.read_bytes(), 'Staged executable bytes'
 
@@ -115,7 +163,7 @@ def main():
         assert repeated.read_bytes() == pdf.read_bytes(), 'Repeat determinism'
         negatives = []
         for name in ('existing', 'absent', 'stdout'):
-            target = output / (name+' target.pdf'); original = b'original Windows target bytes' if name == 'existing' else None
+            target = output / (name+' target.pdf'); original = b'original target bytes' if name == 'existing' else None
             if original is not None: target.write_bytes(original)
             result = execute(executable, bad, '-' if name == 'stdout' else target, '--overwrite', expected_exit=3)
             validate_diagnostic(result); validate_destination(target, original)
@@ -131,7 +179,7 @@ def main():
         report = dict(sourceHead=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
             dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=root).strip()),
             platform=platform.platform(), machine=platform.machine(), runnerImage=os.environ.get('ImageVersion'),
-            entry='direct isolated FactsPDF.Cli.exe', pe=pe, executableSha256=digest(source.read_bytes()),
+            rid=rid, entry='direct isolated '+source.name, header=header, executableSha256=digest(source.read_bytes()),
             executableBytes=source.stat().st_size, isolatedDirectory=str(work), onlyExecutableStaged=True,
             inputSha256=digest(html.read_bytes()), unsupportedInputSha256=digest(bad.read_bytes()),
             pdfSha256=digest(pdf.read_bytes()), pdfBytes=pdf.stat().st_size, pages=2,
@@ -140,14 +188,14 @@ def main():
             recoveryBytesEqual=True, reorderedPdfRejected=True, published=False,
             visualReferenceApproval='not requested')
         (output / 'report.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
-    summary = dict(sourceHead=report['sourceHead'], platform=report['platform'], machine=report['machine'],
+    summary = dict(rid=rid, sourceHead=report['sourceHead'], platform=report['platform'], machine=report['machine'],
         executableSha256=report['executableSha256'], pdfSha256=report['pdfSha256'], pdfBytes=report['pdfBytes'],
         pages=2, directIsolatedExe=True, exactDiagnosticAndPreservationCases=3, recovery=True,
         reorderedPdfRejected=True, isolatedDirectoryRemoved=not work.exists())
     print(json.dumps(summary))
     if os.environ.get('GITHUB_ACTIONS') == 'true':
         # Result metadata only, never PDF bytes or an alternate artifact-download path.
-        print('::notice title=Windows x64 Native AOT acceptance::'+json.dumps(summary).replace('%', '%25'))
+        print(f'::notice title={label} Native AOT acceptance::'+json.dumps(summary).replace('%', '%25'))
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
             stream.write('Windows x64 Native AOT acceptance passed.\n\n```json\n'+json.dumps(summary, indent=2)+'\n```\n')
 

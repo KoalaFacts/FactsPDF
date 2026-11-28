@@ -19,11 +19,14 @@ public sealed class InlineReplacedElementTests
     private static PdfOptions Options() => new()
     { Images = new Dictionary<string, PdfImage> { ["gray"] = PdfImage.FromBytes(JpegResourceTests.Bytes("gray")) } };
 
+    // The expected positions start at the 36pt page margin, so the user-agent body margin is reset.
+    private const string Neutral = "<style>body{margin:0}</style>";
+
     private static LayoutPage Page(string html, PdfOptions? options = null)
-        => TableLayoutTests.Layout(html, options ?? Options()).Single();
+        => TableLayoutTests.Layout(Neutral + html, options ?? Options()).Single();
 
     private static string Text(string html, PdfOptions? options = null)
-        => Encoding.Latin1.GetString(TableLayoutTests.Pdf(html, options ?? Options()));
+        => Encoding.Latin1.GetString(TableLayoutTests.Pdf(Neutral + html, options ?? Options()));
 
     private static FactsPdfException Reject(string html, string code, PdfOptions? options = null)
     {

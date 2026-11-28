@@ -116,6 +116,8 @@ public sealed class CssNamedColorTests
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "FactsPDF.slnx")))
             dir = dir.Parent;
         Assert.That(dir, Is.Not.Null, "Source checkout required for authored reports.");
-        return File.ReadAllText(Path.Combine(dir!.FullName, "examples", name));
+        // The reports' h1 is not what these tests are about: pin it regular so no bold font chain is needed.
+        return File.ReadAllText(Path.Combine(dir!.FullName, "examples", name))
+            .Replace("<style>", "<style>h1{font-weight:normal}", StringComparison.Ordinal);
     }
 }

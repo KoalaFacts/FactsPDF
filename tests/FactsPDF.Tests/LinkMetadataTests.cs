@@ -20,7 +20,7 @@ public sealed class LinkMetadataTests
         return output.ToArray();
     }
 
-    private const string Body = "<body><h1>Invoice 42</h1><p>Total due: $120</p></body></html>";
+    private const string Body = "<body><h1 style='font-weight:normal'>Invoice 42</h1><p>Total due: $120</p></body></html>";
 
     [TestCase("<link rel=icon href=/favicon.ico>")]
     [TestCase("<link rel=\"shortcut icon\" href=\"/favicon.ico\" type=\"image/x-icon\">")]

@@ -11,10 +11,13 @@ public sealed class WhiteSpaceNowrapTests
         PageWidth = 180, PageHeight = 230, Margin = 20
     };
 
+    // The user-agent sheet's 8px body margin would narrow the already tight 60pt content box of these pages.
+    private const string NoBodyMargin = "<style>html,body{margin:0}</style>";
+
     private static List<PlacedText> Placed(string html, PdfOptions? options = null)
     {
         var o = options ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, o, default), o, default)
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(NoBodyMargin + html, o, default), o, default)
             .SelectMany(page => page.Runs).ToList();
     }
 

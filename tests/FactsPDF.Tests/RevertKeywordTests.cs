@@ -16,7 +16,7 @@ public sealed class RevertKeywordTests
     private static readonly PdfWriter Writer = Pdf.Write().WithPage(p => p.Size(300, 400).Margin(20));
 
     private static string Document(string css, string body = "<h1>Invoice</h1><div class='panel'><p class='lead'>Paid in full</p></div><p>Thanks</p>") =>
-        $"<!doctype html><html><head><style>{css}</style></head><body>{body}</body></html>";
+        $"<!doctype html><html><head><style>h1{{font-weight:normal}}{css}</style></head><body>{body}</body></html>";
 
     [TestCase("h1{font-size:30pt}h1{font-size:revert}", "")]
     [TestCase("p{margin-bottom:20pt}p{margin-bottom:revert}", "")]

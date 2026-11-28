@@ -3,8 +3,7 @@ using NUnit.Framework;
 namespace FactsPDF.Tests;
 
 // dl, dt and dd are blocks like div; the HTML user-agent sheet gives dl the block margins
-// (8pt top and bottom here, as for blockquote) and dd the start indent (24pt, as blockquote's
-// inline margins). Before, each tag failed FPDF1102.
+// (1em, 12pt, top and bottom as for p) and dd the start indent (40px, 30pt). Before, each tag failed FPDF1102.
 [TestFixture]
 public sealed class DescriptionListElementTests
 {
@@ -24,7 +23,7 @@ public sealed class DescriptionListElementTests
     [Test]
     public void DescriptionListRendersLikeDivsWithTheUserAgentMargins()
         => Assert.That(Pdf("<p>A</p><dl><dt>AB</dt><dd>BA</dd><dt>W</dt><dd>WA</dd></dl><p>B</p>"),
-            Is.EqualTo(Pdf("<style>.l{margin:8pt 0}.d{margin-left:24pt}</style><p>A</p><div class=l><div>AB</div>" +
+            Is.EqualTo(Pdf("<style>.l{margin:12pt 0}.d{margin-left:30pt}</style><p>A</p><div class=l><div>AB</div>" +
                 "<div class=d>BA</div><div>W</div><div class=d>WA</div></div><p>B</p>")));
 
     [Test]
@@ -35,14 +34,15 @@ public sealed class DescriptionListElementTests
     public void TheMarginsAreNotThoseOfAPlainDiv()
         => Assert.Multiple(() =>
         {
-            Assert.That(Pdf("<p>A</p><dl><dt>A</dt></dl><p>B</p>"), Is.Not.EqualTo(Pdf("<p>A</p><div><div>A</div></div><p>B</p>")));
+            // The dl's 12pt margin wins over the body's 6pt where a plain div has only the body margin.
+            Assert.That(Pdf("<dl><dt>A</dt></dl>"), Is.Not.EqualTo(Pdf("<div><div>A</div></div>")));
             Assert.That(Pdf("<dd>A</dd>"), Is.Not.EqualTo(Pdf("<div>A</div>")));
         });
 
     [Test]
     public void ParagraphsInsideARenderAsInADiv()
         => Assert.That(Pdf("<dl><dd><p>AB</p><p>W</p></dd></dl>"),
-            Is.EqualTo(Pdf("<style>.l{margin:8pt 0}.d{margin-left:24pt}</style><div class=l><div class=d><p>AB</p><p>W</p></div></div>")));
+            Is.EqualTo(Pdf("<style>.l{margin:12pt 0}.d{margin-left:30pt}</style><div class=l><div class=d><p>AB</p><p>W</p></div></div>")));
 
     [Test]
     public void AuthorCssOverridesTheDefaultsAsForADiv()
@@ -61,7 +61,7 @@ public sealed class DescriptionListElementTests
         var dl = string.Concat(Enumerable.Range(0, 40).Select(i => $"<dt>A{new string('B', i % 5)}</dt><dd>W{new string('A', i % 3)}</dd>"));
         var div = string.Concat(Enumerable.Range(0, 40).Select(i => $"<div>A{new string('B', i % 5)}</div><div class=d>W{new string('A', i % 3)}</div>"));
         Assert.That(Pdf($"<dl>{dl}</dl>"),
-            Is.EqualTo(Pdf($"<style>.l{{margin:8pt 0}}.d{{margin-left:24pt}}</style><div class=l>{div}</div>")));
+            Is.EqualTo(Pdf($"<style>.l{{margin:12pt 0}}.d{{margin-left:30pt}}</style><div class=l>{div}</div>")));
     }
 
     [TestCase("<ul><li><dl><dt>A</dt></dl></li></ul>", "FPDF1101")]

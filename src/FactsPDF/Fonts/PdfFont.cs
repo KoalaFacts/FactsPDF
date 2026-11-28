@@ -28,6 +28,8 @@ public sealed class PdfFont
     internal bool AllowsSubsetting => (U16(Directory.Table("OS/2", 10), 8) & 256) == 0;
     internal double Ascent1000 { get; }
     internal double Descent1000 { get; }
+    /// <summary>The line gap Chrome adds to ascent and descent for line-height:normal (hhea lineGap, or OS/2 typoLineGap with USE_TYPO_METRICS).</summary>
+    internal double LineGap1000 { get; }
     internal double CapHeight1000 { get; }
     internal double XHeight1000 { get; }
     internal double XMin1000 { get; }
@@ -73,11 +75,11 @@ public sealed class PdfFont
         // Conservatively decline restricted, preview-only, bitmap-only and unknown permission bits.
         if ((embedding & 0x000e) is not (0 or 8) || (embedding & ~0x010e) != 0)
             throw new FactsPdfException("FPDF1505", "Font embedding permissions are restricted, preview-only, bitmap-only or unsupported. Supply an appropriately licensed installable/editable font.");
-        var ascent = (int)S16(hhea, 4); var descent = (int)S16(hhea, 6);
+        var ascent = (int)S16(hhea, 4); var descent = (int)S16(hhea, 6); var lineGap = (int)S16(hhea, 8);
         if (version >= 4 && os2.Length >= 78 && (U16(os2, 62) & 0x80) != 0)
-        { ascent = S16(os2, 68); descent = S16(os2, 70); }
+        { ascent = S16(os2, 68); descent = S16(os2, 70); lineGap = S16(os2, 72); }
         Need(ascent > 0 && descent <= 0, "Invalid vertical font metrics.");
-        Ascent1000 = ascent * scale; Descent1000 = descent * scale;
+        Ascent1000 = ascent * scale; Descent1000 = descent * scale; LineGap1000 = Math.Max(0, lineGap) * scale;
         CapHeight1000 = version >= 2 && os2.Length >= 90 && S16(os2, 88) > 0 ? S16(os2, 88) * scale : Ascent1000;
         if (sfnt.Contains("post")) ItalicAngle = unchecked((int)U32(sfnt.Table("post", 16), 4)) / 65536d;
         var longLoca = S16(head, 50); Need(longLoca is 0 or 1, "Unsupported loca representation.");

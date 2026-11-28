@@ -314,7 +314,9 @@ public sealed class StructuralPseudoClassTests
         var table = "<table class='table' style='width:100pt'><colgroup><col style='width:100pt'></colgroup><tbody>" +
             "<tr><td>A</td></tr><tr><td>B</td></tr></tbody></table>";
         Fails("<style>.table tbody tr:nth-of-type(even){padding:2pt}</style>" + table, "FPDF1201");
-        Fails("<style>.table tbody tr:last-of-type{border-bottom:2px solid #ae0f1a}</style>" + table, "FPDF1201");
+        // A row border is validated and dropped in the separated model, where Chrome paints none.
+        Assert.DoesNotThrow(() => HtmlDocumentReader.ReadTree(
+            "<style>.table tbody tr:last-of-type{border-bottom:2px solid #ae0f1a}</style>" + table, new PdfOptions(), default));
         Fails("<style>.divider:not(:empty){gap:1}</style><div class=divider>A</div>", "FPDF1202");
         // Validated even when no element matches.
         Fails("<style>.missing:first-child{gap:1}</style><div>A</div>", "FPDF1202");

@@ -97,10 +97,12 @@ public sealed class ResponsiveImageSizingTests
     [Test]
     public void FixedTrackCellAndColspanUseAvailableContentWidthAndPreserveResources()
     {
-        var actual = "<table style='width:200pt'><colgroup><col style='width:40%'><col style='width:60%'></colgroup>" +
+        // The 120pt image must fit its 60% track: no default 1px cell padding.
+        const string reset = "<style>td{padding:0}</style>";
+        var actual = reset + "<table style='width:200pt'><colgroup><col style='width:40%'><col style='width:60%'></colgroup>" +
             "<tbody><tr><td colspan='2' style='padding:2pt'><img src=chart style='max-width:50%'></td></tr>" +
             "<tr><td>PART</td><td><img src=chart style='width:120pt;max-width:100%'></td></tr></tbody></table>";
-        var oracle = "<table style='width:200pt'><colgroup><col style='width:40%'><col style='width:60%'></colgroup>" +
+        var oracle = reset + "<table style='width:200pt'><colgroup><col style='width:40%'><col style='width:60%'></colgroup>" +
             "<tbody><tr><td colspan='2' style='padding:2pt'><img src=chart style='width:98pt'></td></tr>" +
             "<tr><td>PART</td><td><img src=chart style='width:120pt'></td></tr></tbody></table>";
         SamePdf(actual, oracle);
@@ -115,10 +117,12 @@ public sealed class ResponsiveImageSizingTests
     public void BoundedImageCanFitPageWithoutImplicitAutoShrink()
     {
         var options = Options() with { PageHeight = 100, Margin = 10 };
-        const string constrained = "<img src=chart style='width:200pt;max-width:140pt;padding:2pt'>";
-        const string control = "<img src=chart style='width:140pt;padding:2pt'>";
+        // The 74pt-tall image box must fit the 80pt page, so no default body margin.
+        const string reset = "<style>html,body{margin:0}</style>";
+        const string constrained = reset + "<img src=chart style='width:200pt;max-width:140pt;padding:2pt'>";
+        const string control = reset + "<img src=chart style='width:140pt;padding:2pt'>";
         SamePdf(constrained, control, options);
-        Reject("<img src=chart style='width:200pt;padding:2pt'>", "FPDF1302", options);
+        Reject(reset + "<img src=chart style='width:200pt;padding:2pt'>", "FPDF1302", options);
     }
 
     [TestCase("<img src=chart style='max-width:env(x)'>", "FPDF1202")]

@@ -9,11 +9,14 @@ public sealed class ListStructureTests
     private static DocumentRoot Read(string html, PdfOptions? options = null)
         => HtmlDocumentReader.ReadTree(html, options ?? new(), default);
 
+    // The implied body is always the document root's only child.
+    private static BlockChildList Content(DocumentRoot tree) => ((BlockNode)tree.Children.Single()).Children;
+
     [Test]
     public void RetainsMixedTwoLevelListAndParagraphOrder()
     {
         var tree = Read("<ol><li>A<p>B</p><ul><li>C</li></ul>D</li><li>E</li></ol><p>F</p>");
-        var list = (BlockNode)tree.Children[0];
+        var list = (BlockNode)Content(tree)[0];
         var item = (BlockNode)list.Children[0];
         Assert.That(list.Name, Is.EqualTo("ol"));
         Assert.That(list.Children.Cast<BlockNode>().Select(n => n.Name), Is.EqualTo(new[] { "li", "li" }));
@@ -28,7 +31,7 @@ public sealed class ListStructureTests
     [TestCase("<OL><LI>A</LI><LI>B</LI></OL>")]
     public void OptionalItemEndTagsPreserveSiblings(string html)
     {
-        var list = (BlockNode)Read(html).Children.Single();
+        var list = (BlockNode)Content(Read(html)).Single();
         Assert.That(list.Children, Has.Count.EqualTo(2));
         Assert.That(list.Children.Cast<BlockNode>().All(n => n.Name == "li"), Is.True);
     }
@@ -36,7 +39,7 @@ public sealed class ListStructureTests
     [Test]
     public void OptionalItemEndTagsPreserveNesting()
     {
-        var list = (BlockNode)Read("<ol><li>A<ul><li>B<li>C</ul><li>D</ol>").Children.Single();
+        var list = (BlockNode)Content(Read("<ol><li>A<ul><li>B<li>C</ul><li>D</ol>")).Single();
         Assert.That(list.Children, Has.Count.EqualTo(2));
         var inner = (BlockNode)((BlockNode)list.Children[0]).Children[1];
         Assert.That(inner.Name, Is.EqualTo("ul"));
@@ -47,14 +50,14 @@ public sealed class ListStructureTests
     public void EmptyItemsAndListsRetainStructure()
     {
         var tree = Read("<ol><li></li><li> </li></ol><ul></ul>");
-        Assert.That(((BlockNode)tree.Children[0]).Children, Has.Count.EqualTo(2));
-        Assert.That(((BlockNode)tree.Children[1]).Children, Is.Empty);
+        Assert.That(((BlockNode)Content(tree)[0]).Children, Has.Count.EqualTo(2));
+        Assert.That(((BlockNode)Content(tree)[1]).Children, Is.Empty);
     }
 
     [Test]
     public void ListBoxesUseExistingSelectorsAndBoxStyles()
     {
-        var list = (BlockNode)Read("<style>ol{padding:3pt}ol>li{width:50%;color:red}</style><ol><li>A</li></ol>").Children.Single();
+        var list = (BlockNode)Content(Read("<style>ol{padding:3pt}ol>li{width:50%;color:red}</style><ol><li>A</li></ol>")).Single();
         var item = (BlockNode)list.Children.Single();
         Assert.That(list.BoxStyle.PaddingLeft.Value, Is.EqualTo(3));
         Assert.That(item.BoxStyle.Width, Is.EqualTo(new CssLength(50, true)));

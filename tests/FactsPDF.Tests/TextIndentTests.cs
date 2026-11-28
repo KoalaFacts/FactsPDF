@@ -8,16 +8,31 @@ public sealed class TextIndentTests
 {
     private static readonly PdfOptions Page = new() { PageWidth = 220, PageHeight = 260, Margin = 20 };
 
+    // Neutralise the Chrome user-agent defaults (body margin, paragraph and list spacing) so the
+    // exact coordinates below stay measured against the page content box.
+    private const string Reset = "<style>html,body{margin:0}p{margin:0 0 8pt}ul,ol{margin:0;padding:0}</style>";
+
+    private static string Neutral(string html)
+    {
+        if (!html.StartsWith("<html", StringComparison.Ordinal))
+        {
+            return Reset + html;
+        }
+
+        var end = html.IndexOf('>') + 1;
+        return html[..end] + Reset + html[end..];
+    }
+
     private static List<LayoutPage> Layout(string html, PdfOptions? page = null)
     {
         var options = page ?? Page;
-        return TextLayout.Layout(HtmlDocumentReader.ReadTree(html, options, default), options, default);
+        return TextLayout.Layout(HtmlDocumentReader.ReadTree(Neutral(html), options, default), options, default);
     }
 
     private static byte[] Pdf(string html, PdfOptions? page = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, page ?? Page);
+        PdfConverter.Convert(Neutral(html), output, page ?? Page);
         return output.ToArray();
     }
 
@@ -26,7 +41,7 @@ public sealed class TextIndentTests
         using var output = new MemoryStream();
         output.Write("old-report"u8);
         output.Position = 3;
-        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(html, output, page ?? Page));
+        var error = Assert.Throws<FactsPdfException>(() => PdfConverter.Convert(Neutral(html), output, page ?? Page));
         Assert.That(error!.Code, Is.EqualTo(code));
         Assert.That(output.ToArray(), Is.EqualTo("old-report"u8.ToArray()));
         Assert.That(output.Position, Is.EqualTo(3));
