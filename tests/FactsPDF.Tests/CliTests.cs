@@ -83,9 +83,11 @@ public sealed class CliTests
     [Test]
     public void InvalidUtf8IsRejectedWithoutOutput()
     {
-        var result = Run(["-", "-"], [0xff, 0xfe, 0xff]);
+        // FF FE would be a UTF-16LE byte order mark (HtmlEncodingTests); C3 28 is malformed UTF-8.
+        var result = Run(["-", "-"], [0xc3, 0x28]);
         Assert.That(result.Exit, Is.EqualTo(3));
         Assert.That(result.Output, Is.Empty);
+        Assert.That(result.Error, Does.Contain("Input must be valid UTF-8."));
     }
 
     [Test]

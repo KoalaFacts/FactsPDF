@@ -31,8 +31,8 @@ public sealed class TokenListReuseTests
 
     [TestCase("<p>A</p><blink>B</blink>", "FPDF1102")]
     [TestCase("<p>A</p><style>p{color:banana}</style>", "FPDF1202")]
-    [TestCase("<p>A &bogus; B</p>", "FPDF1104")]
-    [TestCase("<p>A</p></div>", "FPDF1101")]
+    [TestCase("<p>A <b>B</p>", "FPDF1101")]
+    [TestCase("<p>A</p></p>", "FPDF1101")]
     public void ListIsEmptyAfterAFailedRead(string html, string code)
     {
         var error = Assert.Throws<FactsPdfException>(() => HtmlDocumentReader.ReadTree(html, new PdfOptions(), default));

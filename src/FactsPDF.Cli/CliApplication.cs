@@ -5,7 +5,7 @@ using FactsPDF.Configuration;
 
 namespace FactsPDF.CommandLine;
 
-/// <summary>CLI boundary: explicit file access, bounded UTF-8 input and atomic file replacement.</summary>
+/// <summary>CLI boundary: explicit file access, bounded input decoded as Chrome decodes it (BOM, meta charset, UTF-8) and atomic file replacement.</summary>
 public static class CliApplication
 {
     private const string Usage = "Usage: FactsPDF.Cli <input.html|-> <output.pdf|-> [--overwrite] [--page-size a4|letter] [--landscape] [--page-width length --page-height length] [--margin 0|length] [--title text] [--author text] [--subject text] [--keywords text] [--subset-fonts] [--page-numbers] [--header-text text] [--footer-text text] [--page-furniture path.json] [--font path.ttf ...] [--font-bold path.ttf ...] [--font-italic path.ttf ...] [--font-bold-italic path.ttf ...] [--image name=path ...] [--strict true|false]\n" +
@@ -256,7 +256,7 @@ public static class CliApplication
             if (hint is not null) error.WriteLine("Hint: " + hint + " See https://github.com/KoalaFacts/FactsPDF/blob/main/docs/first-use-troubleshooting.md.");
             return 3;
         }
-        catch (DecoderFallbackException) { error.WriteLine("Input must be valid UTF-8."); return 3; }
+        catch (DecoderFallbackException ex) { error.WriteLine(ex.Message); return 3; }
         catch (ArgumentException ex) { error.WriteLine(ex.Message); error.Write(Usage); return 2; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         { error.WriteLine(ex.Message); return 4; }
@@ -386,18 +386,25 @@ public static class CliApplication
         return PageFurnitureJson.Parse(bytes, cancellation);
     }
 
+    // Reads the bytes and decodes them as Chrome would (HtmlEncoding: a byte order mark, then a
+    // meta charset in the prescan, then UTF-8). No encoding takes more than three bytes per UTF-16
+    // unit, so more than three bytes per allowed character (plus a BOM) already exceeds the limit,
+    // and reading stops there.
     private static string ReadInput(Stream input, int limit, CancellationToken cancellation)
     {
-        using var reader = new StreamReader(input, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
-        var text = new StringBuilder(); var buffer = new char[4096]; var first = true;
+        var cap = 3L * limit + 3;
+        using var bytes = new MemoryStream();
+        var buffer = new byte[4096];
         while (true)
         {
-            cancellation.ThrowIfCancellationRequested(); var count = reader.Read(buffer, 0, buffer.Length);
+            cancellation.ThrowIfCancellationRequested(); var count = input.Read(buffer, 0, buffer.Length);
             if (count == 0) break;
-            var start = first && buffer[0] == '\uFEFF' ? 1 : 0; first = false;
-            if (text.Length + count - start > limit) throw new FactsPdfException("FPDF1001", "HTML exceeds MaxInputCharacters.");
-            text.Append(buffer, start, count - start);
+            if (bytes.Length + count > cap) throw new FactsPdfException("FPDF1001", "HTML exceeds MaxInputCharacters.");
+            bytes.Write(buffer, 0, count);
         }
-        return text.ToString();
+        cancellation.ThrowIfCancellationRequested();
+        var text = HtmlEncoding.Decode(bytes.GetBuffer().AsSpan(0, (int)bytes.Length));
+        if (text.Length > limit) throw new FactsPdfException("FPDF1001", "HTML exceeds MaxInputCharacters.");
+        return text;
     }
 }

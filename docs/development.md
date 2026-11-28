@@ -53,7 +53,7 @@ dotnet run --project src/FactsPDF.Cli -c Release -- examples/stylesheet-document
 
 Stylesheets need no additional flag. Font paths are placeholders, not included assets. `--font` may repeat up to eight times. `--subset-fonts` is opt-in and respects no-subsetting font permissions; omitting it retains full embedding.
 
-The CLI accepts input/output paths or `-` for stdin/binary stdout. Input must be valid UTF-8, with or without a UTF-8 BOM. Diagnostics go to stderr, not into PDF bytes; when a diagnostic has a source offset, the CLI adds a `Location: line L, column C.` line. Existing output files require `--overwrite`; a sibling temporary file is replaced into place only after successful conversion. Input HTML and explicit font/image paths cannot be the output path. Use a trusted working directory; filesystem aliases, symlinks and concurrent hostile modifications are not sandboxed.
+The CLI accepts input/output paths or `-` for stdin/binary stdout. Input bytes are decoded as Chrome decodes them: a UTF-8 or UTF-16 byte order mark, else a `meta` charset found by the HTML prescan, else UTF-8; UTF-8, UTF-16 and windows-1252 are supported, any other declared encoding fails `FPDF1103`, and malformed bytes fail ("Input must be valid UTF-8."). Diagnostics go to stderr, not into PDF bytes; when a diagnostic has a source offset, the CLI adds a `Location: line L, column C.` line. Existing output files require `--overwrite`; a sibling temporary file is replaced into place only after successful conversion. Input HTML and explicit font/image paths cannot be the output path. Use a trusted working directory; filesystem aliases, symlinks and concurrent hostile modifications are not sandboxed.
 
 Exit codes: 0 success; 2 usage/argument error; 3 input/rendering limitation; 4 I/O/access error; 130 cancellation. Cancellation is cooperative and cannot interrupt a blocked synchronous caller-stream read/write until it returns.
 
@@ -343,7 +343,7 @@ Base defaults: 1,000,000 UTF-16 input units; 50,000 elements; depth 128; 1,000 p
 | Codes | Meaning |
 | --- | --- |
 | FPDF1001-1003 | Input/element/depth limit |
-| FPDF1101-1104 | HTML structure/element/attribute/reference error |
+| FPDF1101-1103 | HTML structure/element/attribute error |
 | FPDF1201-1206 | CSS property/value/syntax/source/budget error, or a CSS `@page` value that conflicts with an explicit writer page option |
 | FPDF1301-1306 | Text/font availability, layout/page limit, invalid UTF-16, unsupported text processing or invalid page furniture template |
 | FPDF1401 | Output-byte or display-command limit |

@@ -120,8 +120,7 @@ internal static class SvgReader
             var token = tokens[t];
             if (token.Kind == HtmlTokenKind.Text)
             {
-                // Text outside a text element is not rendered by SVG; references are still validated.
-                _ = HtmlTokens.Decode(token.Value, token.Offset);
+                // Text outside a text element is not rendered by SVG.
                 continue;
             }
             if (token.Kind != HtmlTokenKind.Start && token.Kind != HtmlTokenKind.End)

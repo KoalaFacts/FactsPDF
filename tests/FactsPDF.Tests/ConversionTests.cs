@@ -166,9 +166,11 @@ public sealed class ConversionTests
     [TestCase("<p style='line-height:0'>A</p>", "FPDF1202")]
     [TestCase("<p style='color:potato'>A</p>", "FPDF1202")]
     [TestCase("<p>\u4e2d\u6587</p>", "FPDF1301")]
-    [TestCase("<div><span>A</div>", "FPDF1101")]
+    // The parser would close the b at </div> and reopen it after the div (adoption agency).
+    [TestCase("<div><b>A</div>B", "FPDF1101")]
     [TestCase("<p title='unfinished>A</p>", "FPDF1101")]
-    [TestCase("<p>&NotEqualTilde;</p>", "FPDF1104")]
+    // Every named reference decodes (here to U+2242 U+0338); the built-in font has no glyph for it.
+    [TestCase("<p>&NotEqualTilde;</p>", "FPDF1301")]
     public void UnsupportedOrMalformedInputFailsWithoutWritingOutput(string html, string code)
     {
         using var output = new MemoryStream();

@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Globalization;
 using System.Text;
 
 namespace FactsPDF;
@@ -152,7 +151,7 @@ internal static class HtmlTokens
                         styleValueOffset = rawValueStart;
                         styleOriginOffsets = offsets;
                     }
-                    else if (!AddAttribute(scratch, attribute, Decode(value, attrStart)))
+                    else if (!AddAttribute(scratch, attribute, Decode(value, attribute: true)))
                         throw Invalid("Duplicate attribute.", attrStart);
                     SkipSpace(html, ref i);
                 }
@@ -238,44 +237,37 @@ internal static class HtmlTokens
     /// <summary>Decode one style attribute while retaining original HTML boundaries for CSS diagnostics.</summary>
     private static (string Decoded, int[] OriginalOffsets) DecodeWithOriginOffsets(string raw, int rawStart)
     {
-        var decoded = Decode(raw, rawStart);
-        var positions = new int[decoded.Length + 1];
-        var input = 0; var output = 0;
-        Span<char> entity = stackalloc char[34]; // a reference is at most 34 characters (see Decode)
-        while (input < raw.Length)
+        // A reference never decodes to more code units than it is written with (see Decode).
+        var characters = ArrayPool<char>.Shared.Rent(raw.Length);
+        var origins = ArrayPool<int>.Shared.Rent(raw.Length + 1);
+        try
         {
-            if (raw[input] == '&' && input + 1 < raw.Length &&
-                (char.IsAsciiLetterOrDigit(raw[input + 1]) || raw[input + 1] == '#'))
-            {
-                var end = raw.IndexOf(';', input + 1);
-                if (end >= 0 && end - input <= 33)
-                {
-                    var entityLength = DecodeInto(raw.AsSpan(input, end + 1 - input), rawStart + input, entity);
-                    for (var j = 0; j < entityLength; j++)
-                        positions[output++] = rawStart + input;
-                    input = end + 1;
-                    continue;
-                }
-            }
-            positions[output++] = rawStart + input;
-            input++;
+            var written = DecodeInto(raw, attribute: true, characters, origins, rawStart);
+            origins[written] = rawStart + raw.Length;
+            return (new string(characters, 0, written), origins.AsSpan(0, written + 1).ToArray());
         }
-        if (output != decoded.Length) throw new InvalidOperationException("HTML attribute decode offset map is inconsistent.");
-        positions[output] = rawStart + input;
-        return (decoded, positions);
+        finally
+        {
+            ArrayPool<char>.Shared.Return(characters);
+            ArrayPool<int>.Shared.Return(origins);
+        }
     }
 
-    public static string Decode(string text, int offset)
+    /// <summary>Decodes the character references of text (or, with <paramref name="attribute"/>, of an
+    /// attribute value) exactly as the HTML tokenizer does: every named reference of the HTML
+    /// Standard, the legacy names also without their semicolon, and numeric references with the
+    /// tokenizer's replacements. Text that is not a reference, such as an unknown name, stays as written.</summary>
+    public static string Decode(string text, bool attribute = false)
     {
         if (!text.Contains('&')) return text;
-        // Every reference is at least as long as what it decodes to (the shortest, "&#1;", is four
-        // characters for one; a supplementary scalar is two UTF-16 units from at least eight), so
-        // the decoded text fits in a buffer of the source length.
+        // Every reference is at least as long as what it decodes to (the shortest, "&lt", is three
+        // characters for one; a supplementary scalar is two UTF-16 units from at least five, as in
+        // "&Afr;" or "&#65536"), so the decoded text fits in a buffer of the source length.
         char[]? rented = null;
         Span<char> buffer = text.Length <= 256 ? stackalloc char[256] : (rented = ArrayPool<char>.Shared.Rent(text.Length));
         try
         {
-            var written = DecodeInto(text, offset, buffer);
+            var written = DecodeInto(text, attribute, buffer, default, 0);
             return new string(buffer[..written]);
         }
         finally
@@ -284,43 +276,84 @@ internal static class HtmlTokens
         }
     }
 
-    // Decodes character references in `text` into `destination` (at least text.Length long) and
-    // returns the number of characters written; reference names are matched as spans, so no
-    // name substring, numeric-reference string or builder is allocated.
-    private static int DecodeInto(ReadOnlySpan<char> text, int offset, Span<char> destination)
+    // Decodes `text` into `destination` (at least text.Length long) and returns the number of
+    // characters written. When `origins` is not empty, origins[k] is originStart plus the index in
+    // `text` where the reference (or plain character) that produced character k starts. Names are
+    // matched as spans, so no name substring, numeric-reference string or builder is allocated.
+    private static int DecodeInto(ReadOnlySpan<char> text, bool attribute, Span<char> destination, Span<int> origins, int originStart)
     {
         var written = 0;
-        for (var i = 0; i < text.Length; i++)
+        for (var i = 0; i < text.Length;)
         {
-            if (text[i] != '&') { destination[written++] = text[i]; continue; }
-            if (i + 1 >= text.Length || (!char.IsAsciiLetterOrDigit(text[i + 1]) && text[i + 1] != '#'))
-            { destination[written++] = '&'; continue; }
-            var length = text[(i + 1)..].IndexOf(';');
-            var end = length < 0 ? -1 : i + 1 + length;
-            if (end < 0 || end - i > 33) throw new FactsPdfException("FPDF1104", "Character references need a supported name and semicolon.", offset + i);
-            var name = text[(i + 1)..end];
-            var named = name switch
+            var count = 1;
+            var consumed = text[i] == '&' ? Reference(text[(i + 1)..], attribute, destination[written..], out count) : 0;
+            if (consumed == 0)
             {
-                "amp" => '&', "lt" => '<', "gt" => '>', "quot" => '"', "apos" => '\'', "nbsp" => '\u00a0', "shy" => '\u00ad', _ => '\0'
-            };
-            if (named != '\0') destination[written++] = named;
-            else if (name.StartsWith('#') && NumericReference(name) is { } rune)
-                written += rune.EncodeToUtf16(destination[written..]);
-            else
-                throw new FactsPdfException("FPDF1104", $"Unsupported character reference '&{name};'.", offset + i);
-            i = end;
+                destination[written] = text[i];
+                count = consumed = 1;
+            }
+            else consumed++; // the ampersand
+            if (!origins.IsEmpty)
+                for (var k = 0; k < count; k++) origins[written + k] = originStart + i;
+            written += count;
+            i += consumed;
         }
         return written;
     }
 
-    private static Rune? NumericReference(ReadOnlySpan<char> name)
+    // The tokenizer's character reference state for the text after an ampersand: returns how many
+    // characters of `rest` the reference consumes (0 when there is none, so the ampersand is text)
+    // and writes what it stands for.
+    private static int Reference(ReadOnlySpan<char> rest, bool attribute, Span<char> destination, out int written)
     {
-        var hex = name.Length > 1 && name[1] is 'x' or 'X';
-        var number = name[(hex ? 2 : 1)..];
-        return int.TryParse(number, hex ? NumberStyles.AllowHexSpecifier : NumberStyles.None,
-            CultureInfo.InvariantCulture, out var scalar) && scalar > 0 && Rune.IsValid(scalar)
-            ? new Rune(scalar) : null;
+        written = 0;
+        if (rest.IsEmpty) return 0;
+        if (rest[0] == '#') return NumericReference(rest, destination, out written);
+        var length = HtmlCharacterReferences.Match(rest, out var value);
+        if (length == 0) return 0;
+        // Historical attribute values: a legacy name without its semicolon followed by '=' or an
+        // ASCII alphanumeric is not a reference there ("?a=1&copy=2" keeps "&copy").
+        if (attribute && rest[length - 1] != ';' && length < rest.Length
+            && (rest[length] == '=' || char.IsAsciiLetterOrDigit(rest[length])))
+            return 0;
+        value.AsSpan().CopyTo(destination);
+        written = value.Length;
+        return length;
     }
+
+    // "&#" followed by decimal digits, or "&#x"/"&#X" by hexadecimal ones, with an optional
+    // semicolon; without a digit it is no reference. Zero, a surrogate or a value past U+10FFFF is
+    // U+FFFD, and 0x80-0x9F take the windows-1252 characters (the numeric character reference end
+    // state); any other value, a control or noncharacter included, is that scalar.
+    private static int NumericReference(ReadOnlySpan<char> rest, Span<char> destination, out int written)
+    {
+        written = 0;
+        var i = 1;
+        var hex = i < rest.Length && rest[i] is 'x' or 'X';
+        if (hex) i++;
+        var digits = i;
+        var value = 0;
+        while (i < rest.Length && (hex ? char.IsAsciiHexDigit(rest[i]) : char.IsAsciiDigit(rest[i])))
+        {
+            // Saturates past the largest scalar, so a long run of digits never overflows.
+            value = Math.Min(value * (hex ? 16 : 10) + HexDigit(rest[i]), 0x110000);
+            i++;
+        }
+        if (i == digits) return 0;
+        if (i < rest.Length && rest[i] == ';') i++;
+        written = new Rune(NumericScalar(value)).EncodeToUtf16(destination);
+        return i;
+    }
+
+    /// <summary>The scalar a numeric character reference with this value stands for.</summary>
+    internal static int NumericScalar(int value) => value switch
+    {
+        0 or > 0x10FFFF or (>= 0xD800 and <= 0xDFFF) => 0xFFFD,
+        >= 0x80 and <= 0x9F => HtmlEncoding.Windows1252High[value - 0x80],
+        _ => value
+    };
+
+    private static int HexDigit(char ch) => ch <= '9' ? ch - '0' : (ch | 0x20) - 'a' + 10;
 
     private const int MaxPooledAttributes = 1_024;
     [ThreadStatic] private static List<KeyValuePair<string, string>>? attributeScratch;

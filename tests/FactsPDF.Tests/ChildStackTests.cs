@@ -86,8 +86,8 @@ public sealed class ChildStackTests
     }
 
     [TestCase("<div><p>A</p><div><p>B</p><blink>C</blink></div></div>", "FPDF1102")]
-    [TestCase("<div><p>A</p><p>B &bogus;</p></div>", "FPDF1104")]
-    [TestCase("<div><p>A</p><div><p>B</p></div>", "FPDF1101")]
+    [TestCase("<div><p>A</p><p>B</p></p></div>", "FPDF1101")]
+    [TestCase("<div><p>A</p><div><p><b>B</p></div>", "FPDF1101")]
     public void StackIsEmptyAfterAFailedRead(string html, string code)
     {
         var error = Assert.Throws<FactsPdfException>(() => HtmlDocumentReader.ReadTree(html, new PdfOptions(), default));
