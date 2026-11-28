@@ -27,7 +27,7 @@ public sealed class HtmlSyntaxLeniencyTests
     [TestCase("<p>A<span/>B</span> C</p>", "<p>A<span>B</span> C</p>")]
     [TestCase("<ul><li/>A</li><li>B</li></ul>", "<ul><li>A</li><li>B</li></ul>")]
     [TestCase("<table><tr><td/>A</td></tr></table>", "<table><tr><td>A</td></tr></table>")]
-    [TestCase("<h1/>A</h1>", "<h1>A</h1>")]
+    [TestCase("<h1 style='font-weight:normal'/>A</h1>", "<h1 style='font-weight:normal'>A</h1>")]
     public void ASlashOnANonVoidStartTagIsIgnored(string html, string withoutSlash)
         => Assert.That(Pdf(html), Is.EqualTo(Pdf(withoutSlash)));
 

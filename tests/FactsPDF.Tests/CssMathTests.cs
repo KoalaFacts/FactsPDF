@@ -17,7 +17,8 @@ public sealed class CssMathTests
     private static byte[] Pdf(string html, PdfOptions? options = null)
     {
         using var output = new MemoryStream();
-        PdfConverter.Convert(html, output, options ?? Page);
+        // The user-agent sheet gives body an 8px margin; these cases measure from the page area.
+        PdfConverter.Convert("<style>body{margin:0}</style>" + html, output, options ?? Page);
         return output.ToArray();
     }
 

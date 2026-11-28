@@ -39,7 +39,7 @@ internal sealed class CssStylesheets
     private readonly List<CssDeclaration.Slot> inlineSlots = [];
     // Allocate for every accepted CSS property; new bounded components must
     // not index past the last legacy enum member in Native AOT or managed builds.
-    private readonly Winner?[] winners = new Winner?[(int)CssProperty.AnimationTimingFunction + 1];
+    private readonly Winner?[] winners = new Winner?[(int)CssProperty.JustifySelf + 1];
     // The user-agent declarations that won for the element being computed (see UserAgentStyleSheet),
     // merged into winners for every property no author declaration (or a revert) decided.
     private readonly Winner?[] userAgentWinners = new Winner?[UserAgentStyleSheet.Properties.Length];
@@ -73,8 +73,20 @@ internal sealed class CssStylesheets
     private readonly PdfOptions options;
     private readonly CssSyntaxLimits syntaxLimits;
     // What the element being computed gives em, rem and font-size percentages in math functions.
-    private double mathParentFontSize, mathElementFontSize, mathRootFontSize;
-    private (double Width, double Height)? viewport;
+    // State only math, animations, layers and revert-layer need, allocated on first use.
+    private sealed class Extras
+    {
+        internal double MathParentFontSize, MathElementFontSize, MathRootFontSize;
+        internal (double Width, double Height)? Viewport;
+        internal Dictionary<string, List<(Layer? Layer, CssAtRuleNode Rule)>>? KeyframesByName;
+        internal Dictionary<(string Name, int Offset), CssDeclaration[]>? KeyframeStates;
+        internal List<Winner>? Offered;
+        internal Layer? LayerRoot;
+        // The animation longhands' cascade winners, apart from the main table, which they would only enlarge.
+        internal readonly Winner?[] Animation = new Winner?[(int)CssProperty.AnimationTimingFunction - (int)CssProperty.AnimationName + 1];
+    }
+    private Extras? extras;
+    private Extras X => extras ??= new();
     // Whether a selector reads sibling positions or emptiness, and the script and template elements
     // collection dropped (each with the token index it preceded), which still count as siblings.
     private bool usesStructure;
@@ -105,7 +117,7 @@ internal sealed class CssStylesheets
     }
     private readonly List<Deferral> customDeclarations = [], pendingDeclarations = [];
     // Every declaration offered to the element being computed, kept only when a stylesheet uses revert-layer.
-    private readonly List<Winner> offered = [];
+    private List<Winner> offered => X.Offered ??= [];
     // The computed custom properties of each element on the current ancestor path, by depth.
     private readonly List<CssCustomEnvironment> environments = [];
     private readonly List<CssDeclaration.Slot> substitutionSlots = [];
@@ -421,11 +433,12 @@ internal sealed class CssStylesheets
         internal int Rank { get; set; }
     }
 
-    private readonly Layer layerRoot = new("", null);
+    private Layer layerRoot => X.LayerRoot ??= new("", null);
     // The valid @keyframes rules by name (the last of a name wins), and the declarations of their 0% and
     // 100% keyframes compiled when an animation first shows one.
-    private readonly Dictionary<string, List<(Layer? Layer, CssAtRuleNode Rule)>> keyframes = new(StringComparer.Ordinal);
-    private readonly Dictionary<(string Name, int Offset), CssDeclaration[]> keyframeStates = [];
+    private Dictionary<string, List<(Layer? Layer, CssAtRuleNode Rule)>> keyframes => X.KeyframesByName ??= new(StringComparer.Ordinal);
+    private Dictionary<(string Name, int Offset), CssDeclaration[]> keyframeStates => X.KeyframeStates ??= [];
+    private bool HasKeyframes => extras?.KeyframesByName is { Count: > 0 };
     private int layerCount;
 
     private Layer LayerAt(Layer? scope, string name)
@@ -450,6 +463,7 @@ internal sealed class CssStylesheets
     // the layers of one level in the order they first appeared.
     private void FinalizeLayers()
     {
+        if (extras?.LayerRoot is null) return;
         var next = 0;
         void Visit(Layer layer)
         {
@@ -592,9 +606,9 @@ internal sealed class CssStylesheets
     {
         string Value(CssProperty property, string initial)
         {
-            if (winners[(int)property] is not { } winner) return initial;
+            if (X.Animation[(int)property - (int)CssProperty.AnimationName] is not { } winner) return initial;
             var value = winner.Declaration.Value;
-            if (value is "initial" or "unset") return initial;
+            if (value is "initial" or "unset" or "revert" or "revert-layer") return initial;
             if (value == "inherit")
                 throw new FactsPdfException("FPDF1202", "inherit for an animation property is not supported: animations apply to the element itself.", winner.Declaration.Offset);
             return value;
@@ -633,14 +647,6 @@ internal sealed class CssStylesheets
     private void ParseBlock(IReadOnlyList<CssSyntaxContent> contents, CssSelector[]? parents, Layer? layer)
     {
         List<CssDeclarationNode>? declarations = null;
-        void Flush()
-        {
-            if (declarations is { Count: > 0 })
-            {
-                AddStyleRule(parents!, declarations, layer);
-                declarations = null;
-            }
-        }
         foreach (var item in contents)
         {
             budget.Token.ThrowIfCancellationRequested();
@@ -652,12 +658,12 @@ internal sealed class CssStylesheets
                 (declarations ??= []).Add(declaration);
                 continue;
             }
-            Flush();
+            if (declarations is { Count: > 0 }) { AddStyleRule(parents!, declarations, layer); declarations = null; }
             if (item is CssAtRuleNode at) ParseAtRule(at, parents, layer);
             else if (item is CssQualifiedRuleNode qualified) ParseStyleRule(qualified, parents, layer);
             else throw new FactsPdfException("FPDF1203", "Unsupported CSS rule syntax.", item.Span.Start);
         }
-        Flush();
+        if (declarations is { Count: > 0 }) AddStyleRule(parents!, declarations, layer);
     }
 
     private void ParseAtRule(CssAtRuleNode at, CssSelector[]? parents, Layer? layer)
@@ -840,7 +846,7 @@ internal sealed class CssStylesheets
         ListMarkerKind? listTypeHint = null, CssPseudoElement pseudo = CssPseudoElement.None, string? pseudoName = null,
         CssDeclaration? widthHint = null, CssDeclaration? heightHint = null)
     {
-        Array.Clear(winners); Array.Clear(userAgentWinners); var element = path[^1];
+        Array.Clear(winners); Array.Clear(userAgentWinners); if (extras is not null) Array.Clear(extras.Animation); var element = path[^1];
         if (budget.UsesRevertLayer) offered.Clear();
         // A pseudo-element is matched through its originating element but validated and computed
         // as the box it generates: an inline span or a block div.
@@ -863,6 +869,14 @@ internal sealed class CssStylesheets
             {
                 (declaration.Property == CssProperty.Custom ? customDeclarations : pendingDeclarations)
                     .Add(new(declaration.Shared, declaration.Order, declaration.Offset, isInline, specificity, layer));
+                return;
+            }
+            if (declaration.Property >= CssProperty.AnimationName)
+            {
+                var slot = (int)declaration.Property - (int)CssProperty.AnimationName;
+                var animated = new Winner(declaration, isInline, specificity, layer);
+                if (budget.UsesRevertLayer) offered.Add(animated);
+                if (X.Animation[slot] is not { } known || animated.Beats(known)) X.Animation[slot] = animated;
                 return;
             }
             // revert and revert-layer roll the author origin back: the winner is discarded after the
@@ -1248,11 +1262,11 @@ internal sealed class CssStylesheets
             var used = 0;
             // font-size first: em and a percentage in its math refer to the parent's size, and every other
             // math value refers to this element's final font-size, known once its font-size declaration won.
-            mathParentFontSize = parent.FontSize; mathRootFontSize = rootFontSize;
-            mathElementFontSize = parent.FontSize;
+            X.MathParentFontSize = parent.FontSize; X.MathRootFontSize = rootFontSize;
+            X.MathElementFontSize = parent.FontSize;
             for (var pass = 0; pass < 2; pass++)
             {
-                if (pass == 1) mathElementFontSize = ElementFontSize();
+                if (pass == 1) X.MathElementFontSize = ElementFontSize();
                 foreach (var pending in pendingDeclarations)
                 {
                     if ((pending.Shared.Name == "font-size") != (pass == 0)) continue;
@@ -1282,15 +1296,19 @@ internal sealed class CssStylesheets
 
         // Animations show their time-zero keyframe state: declarations of the animations origin, above every
         // normal declaration and below !important ones.
-        if (keyframes.Count > 0 && winners[(int)CssProperty.AnimationName] is not null && AnimationState(element.Name) is { } shown)
+        if (HasKeyframes && extras?.Animation[0] is not null && AnimationState(element.Name) is { } shown)
             foreach (var declaration in shown) Offer(declaration, true, new CssSpecificity(int.MaxValue, 0, 0), int.MaxValue);
 
         // The element's computed font size from the font-size declaration that won so far.
         double ElementFontSize()
         {
-            if (winners[(int)CssProperty.FontSize] is not { } size || size.Declaration.Value is "revert" or "revert-layer")
+            Winner? size = winners[(int)CssProperty.FontSize];
+            // With no author font-size the user-agent one applies (a heading's 2em, small, big).
+            if (size is null && UserAgentStyleSheet.Properties.Contains(CssProperty.FontSize))
+                size = userAgentWinners[UserAgentStyleSheet.Slot(CssProperty.FontSize)];
+            if (size is not { } chosen || chosen.Declaration.Value is "revert" or "revert-layer")
                 return defaults.FontSize;
-            return CssDeclarations.Apply(defaults with { }, parent, initial, size.Declaration, paragraph, rootFontSize).FontSize;
+            return CssDeclarations.Apply(defaults with { }, parent, initial, chosen.Declaration, paragraph, rootFontSize).FontSize;
         }
         // A winning revert computes the property as if the author origin declared nothing for it: the
         // user-agent defaults below apply, or inheritance. Chrome 158 also discards the presentational
@@ -1623,9 +1641,9 @@ internal sealed class CssStylesheets
         var (width, height) = Viewport();
         return property switch
         {
-            "font-size" => new(mathParentFontSize, mathRootFontSize, width, height, mathParentFontSize),
-            "line-height" => new(mathElementFontSize, mathRootFontSize, width, height, mathElementFontSize),
-            _ => new(mathElementFontSize, mathRootFontSize, width, height, null)
+            "font-size" => new(X.MathParentFontSize, X.MathRootFontSize, width, height, X.MathParentFontSize),
+            "line-height" => new(X.MathElementFontSize, X.MathRootFontSize, width, height, X.MathElementFontSize),
+            _ => new(X.MathElementFontSize, X.MathRootFontSize, width, height, null)
         };
     }
 
@@ -1633,12 +1651,12 @@ internal sealed class CssStylesheets
     // as Chrome resolves them against the @page size and margins.
     private (double Width, double Height) Viewport()
     {
-        if (viewport is { } known) return known;
+        if (X.Viewport is { } known) return known;
         var page = PageRules is { } rules
-            ? rules.Apply(options, new TextStyle(mathRootFontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left))
+            ? rules.Apply(options, new TextStyle(X.MathRootFontSize, 1.2, new Rgb(0, 0, 0), TextAlignment.Left))
             : options;
         var sides = page.SideMargins ?? new PageMargins(page.Margin, page.Margin, page.Margin, page.Margin);
-        return (viewport = (page.PageWidth - sides.Left - sides.Right, page.PageHeight - sides.Top - sides.Bottom)).Value;
+        return (X.Viewport = (page.PageWidth - sides.Left - sides.Right, page.PageHeight - sides.Top - sides.Bottom)).Value;
     }
 
     private void Cache((CssDeclaration, CssCustomEnvironment, string?) key, CssDeclaration[] compiled, FactsPdfException? warning, long nodes)
